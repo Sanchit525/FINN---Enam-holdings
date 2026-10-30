@@ -33,6 +33,13 @@ def main():
     check('Free-host storage declared ephemeral',data.get('storage')=='ephemeral')
     check('Private answer/audit tables absent','answers' not in data and 'model_calls' not in data)
     report['model_available']=data['model']['available']
+    if args.phase=='recovery':
+        previous=json.loads((ROOT/'app/verification/hosted-source.json').read_text(encoding='utf-8'))
+        old=next(c['detail']['restored_at'] for c in previous['checks'] if c['check']=='Recovery provenance visible')
+        restored=data.get('recovery',{}).get('restored_at','')
+        check('New runtime restored after redeployment',restored>old,{'previous_restored_at':old,'restored_at':restored})
+        status,_=call('/api/research/TCS')
+        check('Unsnapshotted TCS state is not falsely durable',status==404)
     payload={'ticker':'INFY','question':QUESTION,'history':[]}
     if args.phase=='answer':
         status,result=call('/api/research/answer',payload,token);answer=result.get('answer',{})

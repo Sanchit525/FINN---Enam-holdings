@@ -3,7 +3,7 @@
 FINN is a mobile-first recruitment prototype for following Indian listed companies: a portfolio digest helps decide what to review, and company investigation answers focused questions from annual reports and actual earnings-call transcripts.
 
 **Repository:** https://github.com/Sanchit525/FINN---Enam-holdings
-**Hosted prototype:** https://finn-enam-holdings.onrender.com — Render Free. Source search and actual hosted refresh passed; hosted AI key approval/recovery checks remain in the [release record](project-notes/release.md).
+**Hosted prototype:** https://finn-enam-holdings.onrender.com — Render Free. Source search, actual hosted refresh and redeployment recovery passed. Hosted AI is explicitly unavailable pending approval to store the server key in Render; see the [release record](project-notes/release.md).
 
 ## Try the two workflows
 

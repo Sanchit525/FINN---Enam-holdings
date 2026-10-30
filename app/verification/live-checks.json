@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-30T12:28:18.410352+00:00",
+  "checked_at": "2026-10-30T21:47:03.213716+00:00",
   "scope": "Saved real dataset + local HTTP; no portfolio refresh or chargeable model calls. Lease fault/recovery checks are local, not hosted.",
   "passed": 152,
   "total": 152,
@@ -1136,7 +1136,7 @@
       "detail": null
     },
     {
-      "check": "Model calls disabled",
+      "check": "Push data does not substitute generated briefs",
       "passed": true,
       "detail": null
     },

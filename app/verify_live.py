@@ -67,7 +67,7 @@ def main():
     status,body=http(BASE,'/api/data');data=json.loads(body)
     check('Live data matches real store, separate from demo',status==200 and data['mode']=='live' and len(data['events'])==len(events) and len(data['companies'])==15)
     check('Verification does not auto-refresh upstream',data['autoRefreshEnabled'] is False)
-    check('Model calls disabled',data['model']['available'] is False)
+    check('Push data does not substitute generated briefs',data['briefs']=={} and all(not e.get('summary') for e in data['events']))
     check('Price/feed outcomes 15/15',data['coverage']['passed']==15,data['coverage'])
     ready=list(data['documents'].values())
     check('Validated attachments accounted for, failures excluded',len(ready)>=1 and len(ready)==data['coverage']['attachmentsReady'] and all(d['status']=='ready' for d in ready),data['coverage'])

@@ -1,8 +1,12 @@
 # Decisions and delivery plan
 
-Updated 2026-10-30 (Asia/Kolkata). Deadline: Sunday, November 1, 2026 (M p. 1); exact hour/timezone unknown. Real local push and generic document retrieval/cited passage search are implemented and checked. Hosting, synthesis and physical-phone testing remain pending. Free tiers only; no model/key is needed for this retrieval stage. Earlier stack/model estimates below are historical proposals, superseded by current implementation decisions.
+Updated 2026-10-31 (Asia/Kolkata). Deadline November 1, 2026; cutoff unspecified. Local push, generic retrieval and fixed Gemini source-grounded answers are implemented. Hosting verification, physical-phone access and submission history links remain pending in release.md. Free tiers only. Earlier stack/model proposals are historical and superseded by implementation decisions.
 
 ## Decision log
+
+**D-021 · Implemented Gemini stage / scope frozen:** fixed `gemini-3.5-flash-lite`, server-only `GEMINI_API_KEY`, no tools/outside company evidence, paid fallback or provider-error retry. Six retrieved source pages get bounded context to avoid chopped qualifications. Validate source identity/hash/page, exact quote/IDs, figures, units and periods; allow one paced validation correction, otherwise retain passage-only access. Cache includes question/history, prompt/model and source versions. Four concise claims allow complete segment lists. Limits: lexical recall and semantic entailment remain imperfect; source review caught omitted segments and an incorrect audit assumption. The ten final outputs reuse seven earlier results, with only material failures rerun. Authorised public repository and Render Free deployment now proceed; optional features/research are frozen.
+
+Competitor-research closeout, October 31: the five-product sample is sufficient for this assignment. The official-page/demo revalidation in research.md R-028 adds no feature obligation or known private architecture. No further generic market survey is planned before November 1; investigate only concrete source or implementation blockers. Product recommendations remain our choices, with attention-to-evidence usability as the focused opportunity.
 
 | ID | Status | Decision and reason | Evidence / trade-off | Revisit when |
 | --- | --- | --- | --- | --- |

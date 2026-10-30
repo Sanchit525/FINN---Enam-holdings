@@ -20,6 +20,7 @@ class BusyRefresh(Exception):
 
 class Store:
     TABLES = ('sources', 'quotes', 'filings', 'documents', 'checks', 'jobs', 'research')
+    LOCAL_TABLES = ('answers','model_calls')  # Private local cache/audit; never exported into bootstrap.
 
     def __init__(self, directory):
         self.directory = Path(directory).resolve()
@@ -41,6 +42,8 @@ class Store:
                 CREATE UNIQUE INDEX IF NOT EXISTS one_running_refresh ON jobs(status) WHERE status='running';
                 CREATE TABLE IF NOT EXISTS meta(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS research(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS answers(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS model_calls(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
                 CREATE VIRTUAL TABLE IF NOT EXISTS research_chunks USING fts5(doc_id UNINDEXED, ticker UNINDEXED, page UNINDEXED, chunk_id UNINDEXED, text);
             ''')
 
@@ -53,7 +56,7 @@ class Store:
         finally:db.close()
 
     def put(self, table, key, payload, **columns):
-        if table not in self.TABLES + ('meta',):
+        if table not in self.TABLES + self.LOCAL_TABLES + ('meta',):
             raise ValueError('Unknown storage table')
         fields = {'id': key, **columns, 'payload': json.dumps(payload, ensure_ascii=False)}
         keys = list(fields)
@@ -61,13 +64,13 @@ class Store:
             db.execute(f"INSERT INTO {table} ({','.join(keys)}) VALUES ({','.join('?' for _ in keys)}) ON CONFLICT(id) DO UPDATE SET " + ','.join(f'{k}=excluded.{k}' for k in keys if k!='id'), list(fields.values()))
 
     def get(self, table, key):
-        if table not in self.TABLES + ('meta',): raise ValueError('Unknown storage table')
+        if table not in self.TABLES + self.LOCAL_TABLES + ('meta',): raise ValueError('Unknown storage table')
         with self.connect() as db:
             row = db.execute(f'SELECT payload FROM {table} WHERE id=?', (key,)).fetchone()
         return json.loads(row['payload']) if row else None
 
     def rows(self, table):
-        if table not in self.TABLES: raise ValueError('Unknown storage table')
+        if table not in self.TABLES + self.LOCAL_TABLES: raise ValueError('Unknown storage table')
         with self.connect() as db:
             return [json.loads(r['payload']) for r in db.execute(f'SELECT payload FROM {table}')]
 

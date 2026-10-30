@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from .adapters import IST
 from .engine import holdings
 from .store import utcnow
+from .gemini import status as model_status
 
 
 def public_document(store,doc,full=False):
@@ -55,7 +56,7 @@ def live_data(store):
                         'attachmentsNotRequested':len(events)-len(latest_docs)},
             'autoRefreshEnabled':__import__('os').environ.get('FINN_AUTO_REFRESH','1')=='1',
             'research':{r['ticker']:research_summary(r) for r in store.rows('research')},
-            'model':{'available':False,'reason':'Synthesis is unavailable. Questions retrieve original passages only; no model request is made.'}}
+            'model':model_status()}
 
 
 def research_summary(record):

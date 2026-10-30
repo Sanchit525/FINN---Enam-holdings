@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: finn-push
+    name: finn-enam
     runtime: python
     plan: free
     buildCommand: pip install -r app/requirements.txt
@@ -13,3 +13,5 @@ services:
         value: "1"
       - key: FINN_AUTO_REFRESH
         value: "1"
+      - key: GEMINI_API_KEY
+        sync: false

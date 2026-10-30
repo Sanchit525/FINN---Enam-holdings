@@ -142,7 +142,7 @@ function render() {
   if (ui.route==='digest') renderDigest(); else if (ui.route==='companies') renderCompanies(); else renderInvestigate();
 }
 
-function showEvidence({evidenceId, eventId, docId}, push = true, update = false) {
+function showEvidence({evidenceId, eventId, docId, quote}, push = true, update = false) {
   const event = data.events.find(e=>e.id===eventId);
   const ev = data.evidence[evidenceId || event?.evidence];
   const doc = data.documents[docId || ev?.doc];
@@ -151,12 +151,12 @@ function showEvidence({evidenceId, eventId, docId}, push = true, update = false)
   if (!update) { modalOrigin = document.activeElement; modalY = window.scrollY; }
   if (push) {
     remember();
-    history.pushState({ui:snapshot(), modal:{evidenceId,eventId,docId}}, '', currentHash()+'/evidence');
+    history.pushState({ui:snapshot(), modal:{evidenceId,eventId,docId,quote}}, '', currentHash()+'/evidence');
   }
   if (eventId && !ui.read.includes(eventId)) { ui.read.push(eventId); persist(); }
   const sourceURL = doc?.url || event?.url;
   const context = ev?.context || doc?.note || (IS_LIVE?'Exchange metadata is available. The original attachment will be fetched and validated before a passage is shown. No AI summary is generated.':'Only exchange metadata was saved for this example. No PDF passage or AI summary is available. The original filing may contain information not reflected in this preview.');
-  const passage = ev?.passage || doc?.pages[0]?.text;
+  const passage = quote || ev?.passage || doc?.pages[0]?.text;
   $('#evidence-content').innerHTML = `<div class="drawer-head"><div><span class="eyebrow">${doc?'PRIMARY-SOURCE EVIDENCE':'SAVED EXCHANGE METADATA'}</span><h2 id="evidence-title">${escapeHTML(title)}</h2></div><button class="close-drawer" id="close-evidence" aria-label="Close evidence and return">×</button></div>
     <div class="drawer-body"><dl class="source-meta"><dt>Document</dt><dd>${escapeHTML(doc?.title || event?.category)}</dd><dt>Period / date</dt><dd>${escapeHTML(doc?.period || event?.time)}${doc?' · '+escapeHTML(doc.date):IS_LIVE?'':' IST'}</dd>${page?`<dt>PDF page</dt><dd>${page} of ${doc.pageCount} · <a href="/source.html?doc=${doc.id}&page=${page}${IS_LIVE?'':'&demo=1'}" target="_blank" rel="noopener">Read saved page ↗</a></dd>`:''}<dt>Source</dt><dd>${new URL(sourceURL).hostname}</dd><dt>${IS_LIVE?'Retrieved':'Saved on'}</dt><dd>${IS_LIVE?escapeHTML(istTime(doc?.retrieved || event?.retrieved_at)):'30 Oct 2026 · experiment sample'}</dd></dl>
     ${doc?.status && !['saved','ready'].includes(doc.status)?`<div class="state-label"><strong>${badgeText[doc.status] || doc.status}.</strong> ${escapeHTML(doc.note)}</div>`:''}

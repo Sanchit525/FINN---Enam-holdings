@@ -20,7 +20,7 @@ def main():
     store=Store(ROOT/'runtime');checks=[];outcomes=[];timings=[]
     def check(name,ok,detail=None):checks.append({'check':name,'passed':bool(ok),'detail':detail})
     status,body=http(BASE,'/api/data');data=json.loads(body);token=data['refreshToken']
-    check('No synthesis enabled',status==200 and not data['model']['available'] and data['briefs']=={})
+    check('Retrieval remains separate from synthesis',status==200 and data['briefs']=={})
     check('Push remains 15 companies and 61 stored filings',len(data['companies'])==15 and len(data['events'])==61 and data['coverage']['passed']==15)
     check('Fresh test symbols have no issuer/PDF configuration',not any(t in ISSUER_INDEXES for t in ['ASIANPAINT','ITC','TITAN']))
     before=len(store.rows('sources'))

@@ -1,6 +1,6 @@
 # FINN assignment requirements
 
-Reviewed on 2026-10-30 (Asia/Kolkata). Status: real local push verifies all fifteen EOD/announcement outcomes. Generic document discovery, full annual-report indexing and question-to-cited-passage retrieval are implemented and tested on INFY/CERA/TITAN plus unprepared ASIANPAINT/ITC; Apollo exercises real failures. The dated manual preview remains separate. Synthesis, hosted phone access, physical-phone testing and final submission remain pending; component checks do not collectively complete the checklist below.
+Reviewed on 2026-10-31 (Asia/Kolkata). Status: real local push, generic document discovery/retrieval and source-grounded Gemini answers are implemented and checked. Ten final audit outputs were manually reviewed, with selective reruns and earlier failures preserved. The dated manual preview stays separate. Public hosting verification, physical-phone access, actual build-history links and final submission remain pending; see release.md. Component checks do not collectively complete the checklist below.
 
 Sources: **M** = `1. ENAM_AI_Engineer_Build_Challenge_Main.pdf` (4 pages); **R** = `2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf` (3 pages). Page references below are PDF page numbers; M also prints matching page numbers. Both documents were read completely and every page visually inspected.
 

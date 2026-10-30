@@ -15,6 +15,8 @@ from .engine import configuration, ensure_document, run_refresh
 from .store import BusyRefresh, Store, utcnow
 from .views import evidence_for, live_data, public_document
 from .research import begin_research,run_research,retrieve,symbol,research_job
+from .answers import answer_question,CitationRejected
+from .gemini import status as model_status,ModelUnavailable
 
 ROOT=Path(__file__).resolve().parents[1]
 ASSETS=ROOT/'preview'/'dist'
@@ -93,7 +95,7 @@ def make_handler(app):
 
         def get_route(self):
             parsed=urlsplit(self.path);path=unquote(parsed.path);query=parse_qs(parsed.query)
-            if path=='/health':return self.send(200,{'status':'ok','mode':'real-source push and extractive pull','model_enabled':False})
+            if path=='/health':return self.send(200,{'status':'ok','mode':'real-source push and cited company research','model_enabled':model_status()['available']})
             if path=='/api/data':
                 app.maybe_refresh();payload=live_data(app.store);payload['refreshToken']=app.token
                 return self.send(200,payload)
@@ -155,7 +157,7 @@ def make_handler(app):
 
         def do_POST(self):
             path=urlsplit(self.path).path
-            if path not in {'/api/refresh','/api/research','/api/research/query'}:return self.send(404,{'error':'Not found'})
+            if path not in {'/api/refresh','/api/research','/api/research/query','/api/research/answer'}:return self.send(404,{'error':'Not found'})
             if not secrets.compare_digest(self.headers.get('X-FINN-Token',''),app.token):return self.send(403,{'error':'Refresh token missing or invalid; reload the page'})
             origin=self.headers.get('Origin')
             if origin and urlsplit(origin).netloc!=self.headers.get('Host'):return self.send(403,{'error':'Cross-origin refresh rejected'})
@@ -165,6 +167,12 @@ def make_handler(app):
                 if not 0<length<=16384:raise ValueError('Invalid request size')
                 body=json.loads(self.rfile.read(length))
                 if not isinstance(body,dict):raise ValueError('Refresh configuration must be an object')
+                if path=='/api/research/answer':
+                    try:return self.send(200,answer_question(app.store,body.get('ticker'),body.get('question'),body.get('history')))
+                    except (ModelUnavailable,CitationRejected) as error:
+                        result=retrieve(app.store,body.get('ticker'),body.get('question'))
+                        result['answer']={'status':'unavailable','error':str(error),'content':None}
+                        return self.send(200,result)
                 if path=='/api/research/query':return self.send(200,retrieve(app.store,body.get('ticker'),body.get('question')))
                 job,reused=app.start_research(body) if path=='/api/research' else app.start_refresh(body)
                 self.send(202,{'job':job,'reused':reused})
@@ -183,7 +191,7 @@ def main():
     app=App(args.data_dir)
     server=ThreadingHTTPServer((args.host,args.port),make_handler(app));server.daemon_threads=True
     print(f'FINN real-source workspace: http://{args.host}:{args.port}',flush=True)
-    print('Dated interaction demo: /?demo=1 · Models disabled · request-driven refresh only',flush=True)
+    print('Dated interaction demo: /?demo=1 · Gemini: '+('configured' if model_status()['available'] else 'unavailable')+' · request-driven refresh only',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass
     finally:server.server_close()

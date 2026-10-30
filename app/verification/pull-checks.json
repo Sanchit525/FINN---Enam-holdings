@@ -1,14 +1,14 @@
 {
-  "checked_at": "2026-10-30T12:31:30.871457+00:00",
+  "checked_at": "2026-10-30T21:47:17.973884+00:00",
   "scope": "Real saved PDFs, metadata and local HTTP; no new upstream or model requests. Mobile observations are separate.",
   "passed": 157,
   "total": 157,
   "warm_http_query_seconds": [
-    0.0707,
-    0.0642,
-    0.0662,
-    0.0791,
-    0.0653
+    0.1414,
+    0.1341,
+    0.1297,
+    0.1383,
+    0.1359
   ],
   "outcomes": [
     {
@@ -703,7 +703,7 @@
   ],
   "checks": [
     {
-      "check": "No synthesis enabled",
+      "check": "Retrieval remains separate from synthesis",
       "passed": true,
       "detail": null
     },

@@ -1,8 +1,8 @@
-# Real-source push and extractive company research
+# Real-source push and cited company research
 
 The mobile UI is shared with the verified preview. Normal mode reads SQLite and makes real official-source requests; `/?demo=1` opens the clearly labelled, manually authored October interaction demo. No hand-selected demo record is used by the live adapters or database.
 
-Investigate now accepts a general NSE ticker, discovers annual reports and actual earnings-call transcripts, extracts the complete usable PDFs and searches original passages with physical-page citations. **Synthesis stays unavailable; no model/key is required or called.**
+Investigate accepts a general NSE ticker, discovers annual reports and actual earnings-call transcripts, extracts usable PDFs and searches original passages with physical-page citations. **Ask with evidence** explicitly requests a server-side Gemini answer; **Search passages only** needs no model/key.
 
 ## Run locally
 
@@ -34,7 +34,7 @@ Omit dates for the current IST date / preceding seven-day announcement window an
 - Each company receives a real NSE announcements request for the configured window. Every returned record is stored/upserted with its exchange ID, published timestamp, provider identity, source request and first/last-seen times. No record is dropped merely for being routine/unknown.
 - Priority is versioned `push-v2` metadata rules. Results, transcripts, relevant leadership/auditor changes and selected transaction/regulatory terms are flagged for review. Scheduled decisions are not labelled as delivered results; proposed capital/listing developments can still merit review. Publication copies and scheduling/compliance have lower priority; unmatched records remain unreviewed. Classification is not proof of materiality. `python -m app.cli rerank` reapplies rules to stored metadata, preserving retrieval times and making no source requests.
 - A small generic set of highest-priority attachments is fetched during refresh; other attachments are retrieved on first open. Validation checks official attachment host/redirects, 25 MB PDF limit, declared response length, PDF signature/EOF, unrepaired structure, configured company identity and usable text. Up to 60 pages are extracted. Original text/page/provenance is displayed. Scans, invalid PDFs, failures and unverified periods remain explicit. Financial tables are not automatically normalised or summarised.
-- Native drawer/history, source tabs and browser-session state preserve the mobile evidence-return journey. Model research is explicitly unavailable; no SDK/provider request is called even if a key exists.
+- Native drawer/history, source tabs and browser-session state preserve the mobile evidence-return journey. Screen loading and passage search make no model request; only an explicit answer/follow-up does.
 
 ## Storage, refresh and boundaries
 
@@ -46,7 +46,7 @@ The shared frontend still has a separate dated demonstration mode. Its manual br
 
 ## Company document retrieval
 
-Open **http://127.0.0.1:8766/#investigate/TITAN**, enter an NSE symbol and press **Load sources**. Ask a question or select a focused question; **Find cited passages** returns source excerpts, not a generated answer. Each reference opens its passage, original URL, document period, retrieval date, hash and physical PDF page. The saved-page reader includes pages beyond the push attachment reader's 60-page limit.
+Open **http://127.0.0.1:8766/#investigate/TITAN**, enter an NSE symbol and press **Load sources**. **Search passages only** returns original excerpts; **Ask with evidence** generates a concise cited answer when the server has a key. Each reference opens its quote, original URL, period, retrieval date, hash and physical PDF page. The saved-page reader includes pages beyond the push attachment reader's 60-page limit.
 
 ```powershell
 python -m app.cli research --tickers INFY CERA TITAN
@@ -77,8 +77,18 @@ Free-host cache is ephemeral. Export a complete, automatically collected local r
 python -m app.cli export --output app/bootstrap.json.gz
 ```
 
-That tracked recovery snapshot preserves source dates/validation metadata and extracted text, not raw PDFs or credentials. On a fresh runtime it restores into empty SQLite and is visibly labelled as recovery data. A request triggers catch-up when the last job is over an hour old. There is no guaranteed background schedule during sleep, and new runtime changes are not written back to Git automatically. The app remains readable from a dated recovery snapshot if upstream requests fail; such failures stay visible. This is a submission-prototype compromise, not durable production storage.
+That tracked recovery snapshot preserves source dates/validation metadata and text, not PDFs, credentials, answers or model-call audits. On a fresh runtime it restores into empty SQLite and is visibly labelled as recovery data. A request triggers catch-up when the last job is over an hour old. No background schedule during sleep or automatic writeback to Git is promised. The app remains readable from dated recovery data if upstream requests fail; failures stay visible. This is a prototype compromise, not durable storage.
 
 Provider/source tests, exact commands and actual outcome records live in `../project-notes/verification.md` and `verification/`. A deployment file or API key is not a passed cloud/AI test.
 
-Recorded push outcome: completed EOD **29 Oct 2026**, announcements **23–30 Oct**, all fifteen source outcomes passed, **61 filings**. The Sun Pharma filing initially arrived incomplete; a corrected bounded download validated all **16,048,521 bytes / 34 pages**. Its old 128 KB response and provenance are retained unchanged under `../tests/fixtures/` and tested as an excluded source. `verification/attachment-diagnostic.json` distinguishes the old partial response, diagnostic size-limit stops and the successful revalidation; no source corruption/password protection is inferred. Free model selection/synthesis is a separate later stage; this retrieval slice needs no key.
+Recorded push outcome: completed EOD **29 Oct 2026**, announcements **23–30 Oct**, all fifteen source outcomes passed, **61 filings**. The Sun Pharma filing initially arrived incomplete; a corrected bounded download validated all **16,048,521 bytes / 34 pages**. The old 128 KB response/provenance remains under `../tests/fixtures/` and is excluded from research. `verification/attachment-diagnostic.json` distinguishes partial bytes, size-limit stops and successful validation.
+
+## Gemini answers
+
+Set `GEMINI_API_KEY` only in the server environment or ignored root `.env.local`. The fixed official endpoint uses `gemini-3.5-flash-lite` and a header credential, never a key URL. No SDK, external tools, model browsing, alternate provider or paid fallback is enabled. The user supplied a free-project key; API access alone cannot independently prove project billing settings. Official [model](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite) and [Free Tier pricing](https://ai.google.dev/gemini-api/docs/pricing) were checked October 30.
+
+POST `/api/research/answer` accepts ticker, question and at most three prior questions with the normal same-origin/token guards. It retrieves up to six annual-report/actual-call pages, caps each context at 6,000 characters, and requests at most four concise claims with exact supporting quotes. Document content is untrusted data. Server checks canonical document/hash/page/chunk provenance, quote membership, numeric values, units and financial periods. One failed validation may receive one paced correction against the same sources; provider/network/quota errors are not retried. Final rejection leaves original passage search available. Deterministic checks do not establish semantic entailment, completeness or investment suitability.
+
+Answers are cached by question/history, model/prompt and source hashes/index versions. Cache hits use no provider request. Private SQLite answers/model-call records are excluded from bootstrap and public data exports. One process handles a generation at a time; local guards allow 40 model requests/day/runtime and at least 12 seconds between them, including corrections. These counters reset with ephemeral storage; they are not Google's quotas. Provider socket timeout is 35 seconds, not a guaranteed end-to-end latency; audits observed roughly 2–69 seconds and a correction adds pacing.
+
+`python -m unittest discover -s tests` is offline. `python -m app.verify_answers` deliberately consumes real model quota; the existing ten-case report has been manually reviewed with selective fixes and failed runs preserved. `python -m app.verify_release_safety` scans current public files and all Git history without printing secrets. Hosted outcomes and any remaining setup are in `../project-notes/release.md`.

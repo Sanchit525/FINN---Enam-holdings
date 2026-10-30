@@ -1,22 +1,24 @@
 'use strict';
+const IS_LIVE = document.querySelector('meta[name="finn-mode"]')?.content === 'live';
+const STORAGE_KEY = IS_LIVE ? 'finn-live-v1' : 'finn-preview-v1';
 const $ = (selector) => document.querySelector(selector);
 const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (n) => '₹' + n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
 const badgeText = {saved:'Saved sources', stale:'Stale call', partial:'Partial coverage', missing:'Not loaded', attention:'For review', routine:'Routine', unreviewed:'Unreviewed'};
 const badge = (status, text) => `<span class="badge ${escapeHTML(status)}">${escapeHTML(text || badgeText[status] || status)}</span>`;
 const dateLabel = date => new Date(date + 'T12:00:00+05:30').toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-const defaults = {route:'digest', period:'week', digestCompany:'all', digestView:'all', filtersOpen:false, search:'', sort:'name', company:'INFY', question:'snapshot', positions:{digest:0, companies:0, investigate:0}, read:[]};
+const defaults = {route:'digest', period:IS_LIVE?'window':'week', digestCompany:'all', digestView:'all', filtersOpen:false, search:'', sort:'name', company:'INFY', question:'snapshot', positions:{digest:0, companies:0, investigate:0}, read:[]};
 let data, ui = structuredClone(defaults), loading = false, modalOrigin = null, modalY = 0, toastTimer, scrollTimer;
 
 try {
-  const saved = JSON.parse(sessionStorage.getItem('finn-preview-v1') || 'null');
+  const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || 'null');
   if (saved) ui = {...defaults, ...saved, positions:{...defaults.positions, ...saved.positions}};
 } catch { /* A disabled browser store does not prevent use. */ }
 if (!['digest','companies','investigate'].includes(ui.route)) ui.route = 'digest';
 history.scrollRestoration = 'manual';
 
 function persist() {
-  try { sessionStorage.setItem('finn-preview-v1', JSON.stringify(ui)); } catch { /* optional persistence */ }
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ui)); } catch { /* optional persistence */ }
 }
 function snapshot() { return structuredClone(ui); }
 function currentHash() { return '#' + ui.route + (ui.route === 'investigate' ? '/' + ui.company : ''); }
@@ -41,6 +43,7 @@ function navigate(route, ticker, reset = false) {
   requestAnimationFrame(() => { window.scrollTo(0, ui.positions[route] || 0); $('#main').focus({preventScroll:true}); });
 }
 function sampleNote() {
+  if (IS_LIVE) return liveSourceNote();
   return `<div class="sample-note"><strong>Saved samples · October 2026.</strong> Manually authored summaries and priorities. No live feed or AI response.</div>`;
 }
 function companyOptions(selected, includeAll = false) {
@@ -58,7 +61,7 @@ function eventAction(e) {
 function eventCard(e) {
   return `<article class="card event-card attention" data-testid="event-${e.id}">
     <div class="card-meta"><span class="ticker">${escapeHTML(e.ticker)}</span><span>${dateLabel(e.date)} · ${badge('attention')}</span></div>
-    <h3>${escapeHTML(e.title)}</h3><p>${escapeHTML(e.summary)}</p>
+    <h3>${escapeHTML(e.title)}</h3>${IS_LIVE?'<div class="small-label">EXCHANGE DESCRIPTION · NOT AN AI SUMMARY</div>':''}<p>${escapeHTML(IS_LIVE?e.description:e.summary)}</p>
     <div class="why"><strong>Why it is here</strong>${escapeHTML(e.reason)}</div>
     <div class="card-actions">${eventAction(e)}<button class="arrow-button" data-investigate="${e.ticker}">Investigate <span aria-hidden="true">→</span></button></div>
     ${ui.read.includes(e.id)?'<div class="read-mark">✓ Evidence opened in this session</div>':''}
@@ -69,6 +72,7 @@ function routineItem(e) {
     <h3>${escapeHTML(e.title)}</h3><p>${escapeHTML(e.reason)}</p><div class="routine-actions"><button class="text-button" data-event="${e.id}">${e.evidence?'Read notice':'Open filing details'} ↗</button><button class="arrow-button" data-investigate="${e.ticker}">Company →</button></div></article>`;
 }
 function renderDigest() {
+  if (IS_LIVE) return renderLiveDigest();
   const events = filteredEvents(), attention = events.filter(e=>e.priority==='attention'), other = events.filter(e=>e.priority!=='attention');
   $('#main').innerHTML = `<span class="eyebrow">YOUR PORTFOLIO BRIEF</span><h1>Your portfolio,<br>in focus.</h1><p class="subhead">What deserves a closer look across your fifteen companies.</p>${sampleNote()}
     <div class="summary-strip" aria-label="Saved example counts"><div><strong>${attention.length}</strong><small>items for review</small></div><div><strong>${other.length}</strong><small>other saved filings</small></div><div><strong>4<span class="denominator"> / 15</span></strong><small>companies sampled</small></div></div>
@@ -87,6 +91,7 @@ function digestResults(events, attention, other) {
     ${showOther && other.length ? `<div class="section-heading"><h2>Other filings</h2><small>${other.length} available</small></div><p class="brief-note">Routine and unreviewed items stay accessible. Priority is manually assigned for this preview.</p>${other.map(routineItem).join('')}`:''}`;
 }
 function renderCompanies() {
+  if (IS_LIVE) return renderLiveCompanies();
   $('#main').innerHTML = `<span class="eyebrow">YOUR RESEARCH UNIVERSE</span><h1>Fifteen companies.<br>One place to start.</h1><p class="subhead">A mock portfolio. Open any company to inspect its saved research coverage.</p>${sampleNote()}
     <div class="field search-wrap"><span aria-hidden="true">⌕</span><input id="company-search" type="search" aria-label="Search 15 companies" placeholder="Search company or NSE ticker" value="${escapeHTML(ui.search)}" autocomplete="off"></div>
     <div class="list-toolbar"><span id="company-count" class="small-label"></span><label>Sort <select id="company-sort" aria-label="Sort companies"><option value="name" ${ui.sort==='name'?'selected':''}>Company A–Z</option><option value="move-desc" ${ui.sort==='move-desc'?'selected':''}>Day move ↓</option><option value="move-asc" ${ui.sort==='move-asc'?'selected':''}>Day move ↑</option><option value="coverage" ${ui.sort==='coverage'?'selected':''}>Saved coverage first</option></select></label></div>
@@ -94,22 +99,23 @@ function renderCompanies() {
     <div id="company-results" class="company-list"></div><p class="small-print">Prices: INR/share. Volume: traded shares. No holdings, position sizes, portfolio returns or live prices are implied.</p>`;
   renderCompanyResults();
 }
-function change(c) { return c.quote ? (c.quote.close / c.quote.previous - 1) * 100 : null; }
+function change(c) { return c.quote ? (IS_LIVE ? c.quote.change_pct : c.quote.previous>0 ? (c.quote.close / c.quote.previous - 1) * 100 : null) : null; }
 function renderCompanyResults() {
   const term = ui.search.trim().toLowerCase();
   let rows = data.companies.filter(c => (c.name+' '+c.ticker+' '+c.sector).toLowerCase().includes(term));
   rows.sort((a,b) => {
     if (ui.sort.startsWith('move')) {
-      if (!a.quote || !b.quote) return Number(!a.quote) - Number(!b.quote) || a.name.localeCompare(b.name);
+      if (change(a)===null || change(b)===null) return Number(change(a)===null) - Number(change(b)===null) || a.name.localeCompare(b.name);
       return (change(a)-change(b))*(ui.sort==='move-desc'?-1:1);
     }
-    if (ui.sort==='coverage') return Number(!data.briefs[a.ticker]) - Number(!data.briefs[b.ticker]) || a.name.localeCompare(b.name);
+    if (ui.sort==='coverage') return (IS_LIVE ? Number(a.coverage!=='saved')-Number(b.coverage!=='saved') : Number(!data.briefs[a.ticker])-Number(!data.briefs[b.ticker])) || a.name.localeCompare(b.name);
     return a.name.localeCompare(b.name);
   });
   $('#company-count').textContent = `${rows.length} of 15 companies`;
-  $('#company-results').innerHTML = rows.length ? rows.map(c => `<button class="company-row" data-investigate="${c.ticker}" data-testid="company-${c.ticker}" aria-label="Investigate ${escapeHTML(c.name)}"><span class="monogram" aria-hidden="true">${escapeHTML(c.name.split(' ').map(n=>n[0]).join('').slice(0,2))}</span><span class="company-copy"><strong>${escapeHTML(c.name)}</strong><small>${c.ticker} · ${escapeHTML(c.sector)}</small>${badge(c.coverage)}</span><span class="company-price">${c.quote?`${money(c.quote.close)}<small class="${change(c)>=0?'up':'down'}">${change(c)>=0?'+':''}${change(c).toFixed(2)}%</small>`:'<small>Price not loaded</small>'}<small aria-hidden="true">Open →</small></span></button>`).join('') : `<div class="empty"><h2>No matching company.</h2><p>Search one of the fifteen selected names or NSE tickers.</p><button class="secondary" id="clear-search">Clear search</button></div>`;
+  $('#company-results').innerHTML = rows.length ? rows.map(c => `<button class="company-row" data-investigate="${c.ticker}" data-testid="company-${c.ticker}" aria-label="Investigate ${escapeHTML(c.name)}"><span class="monogram" aria-hidden="true">${escapeHTML(c.name.split(' ').map(n=>n[0]).join('').slice(0,2))}</span><span class="company-copy"><strong>${escapeHTML(c.name)}</strong><small>${c.ticker} · ${escapeHTML(c.sector)}</small>${badge(c.coverage,IS_LIVE?(c.coverage==='saved'?'Sources fetched':c.coverage==='partial'?'Check coverage':'Not checked'):null)}</span><span class="company-price">${c.quote?`${money(c.quote.close)}<small class="${change(c)>=0?'up':'down'}">${change(c)===null?'Change unavailable':(change(c)>=0?'+':'')+change(c).toFixed(2)+'%'}</small>${IS_LIVE?'<small>'+dateLabel(c.quote.date)+' EOD</small>':''}`:'<small>Price unavailable</small>'}<small aria-hidden="true">Open →</small></span></button>`).join('') : `<div class="empty"><h2>No matching company.</h2><p>Search one of the fifteen selected names or NSE tickers.</p><button class="secondary" id="clear-search">Clear search</button></div>`;
 }
 function renderInvestigate() {
+  if (IS_LIVE) return renderLiveInvestigate();
   const c = company(), brief = data.briefs[c.ticker];
   let facts = brief?.facts || [];
   if (ui.question==='management') facts = facts.filter(f=>!['Business','Annual-report context'].includes(f.label));
@@ -135,34 +141,33 @@ function render() {
   if (ui.route==='digest') renderDigest(); else if (ui.route==='companies') renderCompanies(); else renderInvestigate();
 }
 
-function showEvidence({evidenceId, eventId, docId}, push = true) {
-  const ev = data.evidence[evidenceId];
+function showEvidence({evidenceId, eventId, docId}, push = true, update = false) {
   const event = data.events.find(e=>e.id===eventId);
+  const ev = data.evidence[evidenceId || event?.evidence];
   const doc = data.documents[docId || ev?.doc];
   const title = ev?.label || event?.title || doc?.title;
   const page = ev?.page || doc?.pages[0]?.number;
-  modalOrigin = document.activeElement;
-  modalY = window.scrollY;
+  if (!update) { modalOrigin = document.activeElement; modalY = window.scrollY; }
   if (push) {
     remember();
     history.pushState({ui:snapshot(), modal:{evidenceId,eventId,docId}}, '', currentHash()+'/evidence');
   }
   if (eventId && !ui.read.includes(eventId)) { ui.read.push(eventId); persist(); }
   const sourceURL = doc?.url || event?.url;
-  const context = ev?.context || doc?.note || 'Only exchange metadata was saved for this example. No PDF passage or AI summary is available. The original filing may contain information not reflected in this preview.';
+  const context = ev?.context || doc?.note || (IS_LIVE?'Exchange metadata is available. The original attachment will be fetched and validated before a passage is shown. No AI summary is generated.':'Only exchange metadata was saved for this example. No PDF passage or AI summary is available. The original filing may contain information not reflected in this preview.');
   const passage = ev?.passage || doc?.pages[0]?.text;
   $('#evidence-content').innerHTML = `<div class="drawer-head"><div><span class="eyebrow">${doc?'PRIMARY-SOURCE EVIDENCE':'SAVED EXCHANGE METADATA'}</span><h2 id="evidence-title">${escapeHTML(title)}</h2></div><button class="close-drawer" id="close-evidence" aria-label="Close evidence and return">×</button></div>
-    <div class="drawer-body"><dl class="source-meta"><dt>Document</dt><dd>${escapeHTML(doc?.title || event?.category)}</dd><dt>Period / date</dt><dd>${escapeHTML(doc?.period || event?.time)}${doc?' · '+escapeHTML(doc.date):' IST'}</dd>${page?`<dt>PDF page</dt><dd>${page} of ${doc.pageCount} · <a href="/source.html?doc=${doc.id}&page=${page}" target="_blank" rel="noopener">Read saved page ↗</a></dd>`:''}<dt>Source</dt><dd>${new URL(sourceURL).hostname}</dd><dt>Saved on</dt><dd>30 Oct 2026 · experiment sample</dd></dl>
-    ${doc?.status && doc.status!=='saved'?`<div class="state-label"><strong>${badgeText[doc.status] || doc.status}.</strong> ${escapeHTML(doc.note)}</div>`:''}
+    <div class="drawer-body"><dl class="source-meta"><dt>Document</dt><dd>${escapeHTML(doc?.title || event?.category)}</dd><dt>Period / date</dt><dd>${escapeHTML(doc?.period || event?.time)}${doc?' · '+escapeHTML(doc.date):IS_LIVE?'':' IST'}</dd>${page?`<dt>PDF page</dt><dd>${page} of ${doc.pageCount} · <a href="/source.html?doc=${doc.id}&page=${page}${IS_LIVE?'':'&demo=1'}" target="_blank" rel="noopener">Read saved page ↗</a></dd>`:''}<dt>Source</dt><dd>${new URL(sourceURL).hostname}</dd><dt>${IS_LIVE?'Retrieved':'Saved on'}</dt><dd>${IS_LIVE?escapeHTML(istTime(doc?.retrieved || event?.retrieved_at)):'30 Oct 2026 · experiment sample'}</dd></dl>
+    ${doc?.status && !['saved','ready'].includes(doc.status)?`<div class="state-label"><strong>${badgeText[doc.status] || doc.status}.</strong> ${escapeHTML(doc.note)}</div>`:''}
     <p class="drawer-context">${escapeHTML(context)}</p>
-    ${passage?`<div class="small-label">ORIGINAL SOURCE PASSAGE · WHITESPACE MAY BE NORMALISED</div><blockquote class="source-passage ${passage.length>1300?'long':''}">${escapeHTML(passage)}</blockquote>`:`<div class="state-label"><strong>Passage not saved.</strong> Exchange description below is metadata, not an extracted filing passage.</div><blockquote class="source-passage">${escapeHTML(event.description)}</blockquote>`}
+    ${passage?`<div class="small-label">ORIGINAL SOURCE PASSAGE · WHITESPACE MAY BE NORMALISED</div><blockquote class="source-passage ${passage.length>1300?'long':''}">${escapeHTML(passage)}</blockquote>`:`<div class="state-label"><strong>${IS_LIVE?'Passage not loaded.':'Passage not saved.'}</strong> Exchange description below is metadata, not an extracted filing passage.</div><blockquote class="source-passage">${escapeHTML(event.description)}</blockquote>`}
     ${doc?.pageImage && page===9?`<div class="small-label">ORIGINAL PDF PAGE · TAP TO ENLARGE</div><a href="${doc.pageImage}" target="_blank" rel="noopener"><img class="source-image" src="${doc.pageImage}" alt="KPR Mill original consolidated financial-results table, PDF page 9, amounts in INR lakh"></a>`:''}
     ${doc?.note && doc.status==='saved'?`<p class="drawer-context">${escapeHTML(doc.note)}</p>`:''}
     ${doc?`<details><summary class="text-button">Saved source identity</summary><p class="small-print">SHA-256: ${doc.sha256}<br>Retrieved UTC: ${escapeHTML(doc.retrieved)}<br>Original URL: ${escapeHTML(doc.url)}</p></details>`:''}
     <p class="drawer-return">Sources open in a new tab. Close this drawer to return to the same reading position.</p></div>
-    <div class="drawer-footer">${doc?`<a class="secondary" href="${doc.pdf}#page=${page}" target="_blank" rel="noopener">Saved filing PDF ↗</a>`:''}<a class="primary" href="${escapeHTML(sourceURL)}" target="_blank" rel="noopener noreferrer">Original source ↗</a></div>`;
-  document.body.style.position = 'fixed'; document.body.style.top = `-${modalY}px`; document.body.style.width = '100%';
-  $('#evidence').showModal(); $('#evidence').scrollTop = 0; $('#close-evidence').focus({preventScroll:true});
+    <div class="drawer-footer">${doc?`<a class="secondary" href="${doc.pdf}#page=${page}" target="_blank" rel="noopener">${IS_LIVE&&doc.has_file===false?'Original PDF':'Saved filing PDF'} ↗</a>`:''}<a class="primary" href="${escapeHTML(sourceURL)}" target="_blank" rel="noopener noreferrer">Original source ↗</a></div>`;
+  if (!update) {document.body.style.position = 'fixed'; document.body.style.top = `-${modalY}px`; document.body.style.width = '100%'; $('#evidence').showModal();}
+  $('#evidence').scrollTop = 0; $('#close-evidence').focus({preventScroll:true});
 }
 function closeModal() {
   if (!$('#evidence').open) return;
@@ -181,14 +186,15 @@ document.addEventListener('click', event => {
   else if (button.dataset.document) showEvidence({docId:button.dataset.document});
   else if (button.dataset.event) {
     const e = data.events.find(e=>e.id===button.dataset.event);
-    showEvidence({eventId:e.id, evidenceId:e.evidence});
+    if(IS_LIVE)openLiveEvent(e.id);else showEvidence({eventId:e.id, evidenceId:e.evidence});
   } else if (button.dataset.filter) { ui.digestView = button.dataset.filter; renderDigest(); remember(); }
   else if (button.dataset.question) { ui.question=button.dataset.question; const y=window.scrollY; renderInvestigate(); window.scrollTo(0,y); remember(); }
   else if (button.id==='close-evidence') history.back();
   else if (button.id==='refresh') {
+    if(IS_LIVE){refreshLive();return;}
     loading=true; renderDigest();
     setTimeout(()=>{loading=false;if(ui.route==='digest')renderDigest();announce('Loading replay complete · saved data unchanged');}, 1500);
-  } else if (button.id==='reset-digest') { ui.period='week';ui.digestCompany='all';ui.digestView='all';renderDigest();remember(); }
+  } else if (button.id==='reset-digest') { ui.period=IS_LIVE?'window':'week';ui.digestCompany='all';ui.digestView='all';renderDigest();remember(); }
   else if (button.id==='clear-search') { ui.search='';$('#company-search').value='';renderCompanyResults();remember();$('#company-search').focus(); }
   else if (button.id==='return-view') { if (history.state?.ui && history.length>1) history.back(); else navigate('companies'); }
 });
@@ -229,7 +235,7 @@ window.addEventListener('pagehide', ()=>{if(data&&!$('#evidence').open)remember(
 
 (async function start() {
   try {
-    const response = await fetch('/data.json');
+    const response = await fetch(IS_LIVE?'/api/data':'/data.json');
     if (!response.ok) throw new Error('Saved data could not be loaded');
     data=await response.json();
     if (!company()) ui.company='INFY';
@@ -237,6 +243,7 @@ window.addEventListener('pagehide', ()=>{if(data&&!$('#evidence').open)remember(
     if (['digest','companies','investigate'].includes(hash[0])) ui.route=hash[0];
     if (ui.route==='investigate' && data.companies.some(c=>c.ticker===hash[1])) ui.company=hash[1];
     history.replaceState({ui:snapshot()},'',currentHash());render();
+    if(IS_LIVE&&data.activeJob)pollLiveJob();
     requestAnimationFrame(()=>window.scrollTo(0,ui.positions[ui.route]||0));
   } catch(error) {
     $('#main').innerHTML=`<div class="empty"><h1>Saved sample unavailable.</h1><p>The local data file could not be loaded. Check that the Python server is running and reload this page.</p><a class="primary" href="/">Reload preview</a></div>`;

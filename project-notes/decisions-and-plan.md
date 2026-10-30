@@ -39,6 +39,18 @@ Verification: **42/42** local HTTP/content/source-identity checks; browser actio
 
 ## Recommended product and technical plan
 
+### Current budget and implementation override · October 30
+
+**Free tiers only.** The paid Railway plan, earlier $10 hosting / $5 API allowance and paid-model recommendation below are superseded, not approved. The user reports an OpenAI key is available for secure setup later; credits are unconfirmed. No model call is enabled or needed for this push slice. No secrets are requested in chat.
+
+Current implementation extends the preview's HTML/CSS/JS with Python standard-library HTTP routes, SQLite and the existing PyMuPDF extraction approach. This avoids a frontend rewrite or unnecessary framework installation. `app/adapters.py` refactors the working NSE request/CSV/announcement logic without the experiments' cache; every refresh issues actual requests. Files/requests carry original URL, UTC retrieval time, status, bytes/hash and validation outcome. Financial tables are not automatically summarised; EOD arithmetic is deterministic.
+
+**Free deployment route: Render Free Python Web Service**, with `render.yaml` and `.python-version` prepared. Local SQLite persists on this computer. On the free host, SQLite/PDF files are temporary: cold startup can restore an explicitly dated, automatically exported full-refresh snapshot, then request-triggered catch-up rebuilds sources. No scheduled refresh while sleeping is promised, no keep-alive service is added, and no persistent volume/paid cron is provisioned. Snapshot restores preserve original retrieval times and omit raw PDF bytes; missing cached PDFs can be fetched again or opened at the original source.
+
+Exact setup pending: sign in to a Render account; provide a Git repository the service can read (or create/connect one in the coordinating chat); create the service with **Free** compute and verify included usage/spend settings without adding a payment method or paid add-ons. The dashboard opened at `/login`; no Render API credentials or authenticated dashboard access were available. Therefore cloud creation and the **actual hosted NSE retrieval check remain pending**. Neither local success nor the prepared YAML proves cloud network access. Continue local work independently.
+
+Refresh architecture: one bounded job/SQLite lease, per-company outcomes, metadata upserts, immutable response hashes; manual selected-company/all-15 refresh and stale-on-request catch-up. Global request limits are prototype safeguards and reset with an ephemeral runtime. No assumption of durable cloud job history, always-on scheduling or complete exchange-feed reconciliation.
+
 Planning revision: October 30, 2026. Requirements are in requirements.md; supporting observations are research.md R-001 through R-021 and verification.md V-011 through V-043. Recommendations below are concrete proposals, not implemented features or additional assignment requirements. No application scaffold, deployment, subscription or model call was created in this planning stage.
 
 ### Two focused directions

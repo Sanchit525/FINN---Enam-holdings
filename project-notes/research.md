@@ -232,6 +232,12 @@ Architecture/model recommendations and acceptance gates are in decisions-and-pla
 
 ## Future entry convention
 
+### R-025 · Free-host constraint update · October 30
+
+Only Render was revisited; no further hosting comparison. Official [Free-service documentation](https://render.com/docs/free) states 15-minute idle sleep, roughly one-minute wake-up, ephemeral local files/no free disk, 750 shared monthly instance hours, usage quotas and possible suspension for high outbound traffic. Without a payment method, exhausted bandwidth/build allowances suspend service/builds instead of adding those charges. Free outbound SMTP ports are restricted; successful NSE HTTPS access from the chosen runtime is still unverified. [Outbound IP documentation](https://render.com/docs/outbound-ip-addresses) explains region-specific, shared egress ranges: a laptop fetch cannot prove an exchange will accept cloud traffic.
+
+[Cron jobs](https://render.com/docs/cronjobs) have a minimum $1 monthly charge, so none is configured. [.python-version](https://render.com/docs/python-version) supports a minor pin; use `3.13` for the deployment preparation. The free route deliberately uses temporary cache/recovery snapshot and request-driven refresh, not an imaginary free persistent volume. Render dashboard inspection reached sign-in; hosted retrieval is pending account/repository access. No purchase, card entry, provider signup or model request occurred.
+
 ### R-024 · Local preview evidence use · October 30
 
 The user authorised implementation of a local interaction preview after planning. `preview/prepare_samples.py` now selects eight real filing metadata examples, eight saved PDFs and nine original passages from existing experiments, with retrieval timestamps and SHA-256 provenance. This was an offline preparation step, not additional competitor research or a new feed/AI verification. Displayed summaries, priorities and research views are manually authored. Eleven of the fifteen companies deliberately remain not loaded; the four available EOD samples remain dated October 29. Preview-specific browser/HTTP checks are in verification.md V-051 onward; they do not alter the competitor-testing limitations above.

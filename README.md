@@ -3,7 +3,7 @@
 FINN is a mobile-first recruitment prototype for following Indian listed companies: a portfolio digest helps decide what to review, and company investigation answers focused questions from annual reports and actual earnings-call transcripts.
 
 **Repository:** https://github.com/Sanchit525/FINN---Enam-holdings
-**Hosted prototype:** deployment verification in progress; see [release record](project-notes/release.md).
+**Hosted prototype:** https://finn-enam-holdings.onrender.com — Render Free. Source search and actual hosted refresh passed; hosted AI key approval/recovery checks remain in the [release record](project-notes/release.md).
 
 ## Try the two workflows
 
@@ -12,6 +12,8 @@ FINN is a mobile-first recruitment prototype for following Indian listed compani
 3. **Coverage limits:** `ASIANPAINT` was an unprepared discovery test. `ITC` and `APOLLOHOSP` demonstrate genuine partial/blocked-source outcomes. Unknown or missing evidence stays explicit.
 
 The recorded portfolio dataset is official EOD **29 October 2026** plus **61 returned filings for 23–30 October**. Dates and later refresh outcomes remain visible. It is not an intraday feed. `/?demo=1` is a separate, explicitly manual interaction demo; its briefs never supply live answers.
+
+The first actual hosted catch-up on October 31 passed **15/15** EOD/filing outcomes in **29.477 seconds**, using **30 October EOD** and the 24–31 October filing window. It added 13 filings, bringing retained history to 74 records; this is returned-source coverage, not a market-wide completeness claim.
 
 ## Run locally
 

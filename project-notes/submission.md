@@ -24,7 +24,7 @@ Dear ENAM team,
 
 Please find my FINN prototype for monitoring and researching Indian listed companies.
 
-- Prototype: [INSERT VERIFIED HTTPS DEPLOYMENT URL]
+- Prototype: https://finn-enam-holdings.onrender.com
 - Repository: https://github.com/Sanchit525/FINN---Enam-holdings
 - Actual AI build conversations: [INSERT ACCESSIBLE LINKS OR ATTACH EXPORTS]
 
@@ -32,7 +32,7 @@ The product connects a 15-company portfolio digest to focused company investigat
 
 I prioritised a small mobile workflow and traceable evidence over a broad dashboard. Python, SQLite, PyMuPDF and buildless HTML/CSS/JavaScript keep the architecture compact. Retrieval/validation are separate from explanation; reported figures are checked rather than delegated to model arithmetic. Unfamiliar NSE symbols work where documents are available, with honest missing-source states.
 
-Local validation includes 40 offline tests, push/retrieval checks and ten source-reviewed answer cases, with failed first passes preserved. [INSERT ACTUAL HOSTED RESULTS FROM release.md.] This small audit does not guarantee every answer. Free-host storage is ephemeral and upstream/model quota can fail; source-only recovery preserves dated evidence. I omitted broker integrations, trading advice, intraday feeds, OCR and universal financial-table normalisation. Next steps would be broader source/answer evaluation, durable ingestion and physical-phone testing with investors.
+Local validation includes 40 offline tests, push/retrieval checks and ten source-reviewed answer cases, with failed first passes preserved. The actual Render Free service passed source search and a 15-company EOD/filings refresh, using October 30 EOD and a visible filing window. [COMPLETE HOSTED AI/RECOVERY STATUS FROM release.md BEFORE SENDING.] This small audit does not guarantee every answer. Free-host storage is ephemeral and upstream/model quota can fail; source-only recovery preserves dated evidence. I omitted broker integrations, trading advice, intraday feeds, OCR and universal financial-table normalisation. Next steps would be broader source/answer evaluation, durable ingestion and physical-phone testing with investors.
 
 Regards,
 Sanchit Arora

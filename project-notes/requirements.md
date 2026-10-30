@@ -1,6 +1,6 @@
 # FINN assignment requirements
 
-Reviewed on 2026-10-31 (Asia/Kolkata). Status: real local push, generic document discovery/retrieval and source-grounded Gemini answers are implemented and checked. Ten final audit outputs were manually reviewed, with selective reruns and earlier failures preserved. The dated manual preview stays separate. Public hosting verification, physical-phone access, actual build-history links and final submission remain pending; see release.md. Component checks do not collectively complete the checklist below.
+Reviewed on 2026-10-31 (Asia/Kolkata). Status: real push, generic retrieval and source-grounded Gemini answers are implemented. Public Render Free deployment, actual 15-company refresh and hosted pull passed; fresh TCS discovery is honestly partial. Ten local final answer outputs were reviewed with selective reruns and failures retained. Hosted AI key approval/recovery checks, physical-phone testing, actual history links and submission remain pending in release.md. The dated manual preview stays separate.
 
 Sources: **M** = `1. ENAM_AI_Engineer_Build_Challenge_Main.pdf` (4 pages); **R** = `2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf` (3 pages). Page references below are PDF page numbers; M also prints matching page numbers. Both documents were read completely and every page visually inspected.
 

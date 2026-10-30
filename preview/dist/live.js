@@ -49,15 +49,7 @@ function renderLiveCompanies() {
   renderCompanyResults();
 }
 function renderLiveInvestigate() {
-  const c=company(),events=data.events.filter(e=>e.ticker===c.ticker).sort((a,b)=>b.published_at.localeCompare(a.published_at));
-  const docs=Object.values(data.documents).filter(d=>d.ticker===c.ticker);
-  $('#main').innerHTML=`<button class="back-link" id="return-view">← Back to previous view</button><div class="eyebrow">COMPANY SOURCES</div>
-    <div class="field"><label for="research-company">Selected company</label><select id="research-company">${companyOptions(ui.company)}</select></div>
-    <div class="company-identity"><span class="monogram" aria-hidden="true">${escapeHTML(c.ticker.slice(0,2))}</span><div><h1 class="company-title">${escapeHTML(c.name)}</h1><small>NSE: ${c.ticker} · ${escapeHTML(c.sector)}</small></div></div>
-    ${c.quote?`<div class="quote-strip"><strong>${money(c.quote.close)}</strong><span class="${change(c)>=0?'up':'down'}">${change(c)===null?'Unavailable':(change(c)>=0?'+':'')+change(c).toFixed(2)+'%'}</span><small>EOD · ${escapeHTML(c.quote.date)}</small></div><p class="brief-note">Volume: ${c.quote.volume.toLocaleString('en-IN')} shares · fetched ${escapeHTML(istTime(c.quote.retrieved_at))} · <a href="${escapeHTML(c.quote.source)}" target="_blank" rel="noopener noreferrer">NSE daily file ↗</a></p>`:'<div class="state-label">EOD quote unavailable. Inspect company coverage for the actual source outcome.</div>'}
-    ${liveSourceNote()}<div class="coverage-note"><span aria-hidden="true">◌</span><div><strong>AI investigation unavailable.</strong> ${escapeHTML(data.model.reason)} Annual-report/transcript research is the next slice. The filings below are real backend data, not the manually authored demo briefs.</div></div>
-    <div class="section-heading"><h2>Fetched filings</h2><small>${events.length} stored</small></div>${events.length?events.map(routineItem).join(''):'<div class="empty"><h2>No filings stored.</h2><p>This can mean no returned records or a failed/unattempted request; inspect source outcomes.</p></div>'}
-    <div class="section-heading"><h2>Validated attachments</h2><small>${docs.length}</small></div><div class="source-list">${docs.map(d=>sourceRow(d.id)).join('')||'<p class="brief-note">Open a filing to retrieve and validate its original attachment.</p>'}</div>${liveCoverage()}`;
+  return renderPullInvestigate();
 }
 async function refreshLive() {
   loading=true;renderLiveDigest();

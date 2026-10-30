@@ -19,7 +19,7 @@ class BusyRefresh(Exception):
 
 
 class Store:
-    TABLES = ('sources', 'quotes', 'filings', 'documents', 'checks', 'jobs')
+    TABLES = ('sources', 'quotes', 'filings', 'documents', 'checks', 'jobs', 'research')
 
     def __init__(self, directory):
         self.directory = Path(directory).resolve()
@@ -40,6 +40,8 @@ class Store:
                 CREATE TABLE IF NOT EXISTS jobs(id TEXT PRIMARY KEY,status TEXT,started_at TEXT,expires_at TEXT,payload TEXT NOT NULL);
                 CREATE UNIQUE INDEX IF NOT EXISTS one_running_refresh ON jobs(status) WHERE status='running';
                 CREATE TABLE IF NOT EXISTS meta(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS research(id TEXT PRIMARY KEY,payload TEXT NOT NULL);
+                CREATE VIRTUAL TABLE IF NOT EXISTS research_chunks USING fts5(doc_id UNINDEXED, ticker UNINDEXED, page UNINDEXED, chunk_id UNINDEXED, text);
             ''')
 
     @contextmanager
@@ -136,6 +138,7 @@ class Store:
                 elif table=='filings':self.put(table,row['id'],row,ticker=row['ticker'],published=row['published_at'])
                 elif table=='documents':self.put(table,row['id'],row,event_id=row['event_id'],checked_at=row['checked_at'])
                 elif table=='checks':self.put(table,row['id'],row,ticker=row['ticker'],job_id=row['job_id'])
+                elif table=='research':self.put(table,row['ticker'],row)
                 elif table=='jobs':
                     if row['status']=='running':row.update(status='interrupted',error='Interrupted snapshot job')
                     self.save_job(row)

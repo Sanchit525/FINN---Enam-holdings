@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-10-30T11:55:48.548903+00:00",
+  "checked_at": "2026-10-30T12:28:18.410352+00:00",
   "scope": "Saved real dataset + local HTTP; no portfolio refresh or chargeable model calls. Lease fault/recovery checks are local, not hosted.",
-  "passed": 90,
-  "total": 90,
+  "passed": 152,
+  "total": 152,
   "job": {
     "id": "cf13e8526f3e4da0bff3460497a4af3e",
     "status": "complete",
@@ -692,6 +692,316 @@
     },
     {
       "check": "Response hash 5d578a58188442089762dcbd2aba335a",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 5dcc05c9c14c4a2eba62dd9205a19f62",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 0e1b89eb5ade4fca88c68adbfcdd50cc",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash afd1ef66e17c4c13818bc485be7e6a47",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 07c86f8275b345bbb69918acf75993a5",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash cffd268bfe94481190ccc8bfc95dc3f4",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 54a9ad83e0f140c1902cc3e0b3feb9c2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 7b6006861cbf49029a2ae48c9685c3dc",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 0fd6e91cd7bc4154a4926f65c6b68ea1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 19a43a63058440e1a8acc370544c894f",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 5a864be3717d4a9494d0efd5d254d404",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 0b6478a0081d4180b0b23d720b5c2af5",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 6a571d1209b340b8b2169c1b38cb469c",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash c47fbe7b93f043cd94f8e567ecf6f5b4",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 9856e124121f41f4a1834c7afe0c2957",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 426d84b2b9064277b3d3a4d7b587dcec",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 77a79c35bb464119b62935aa4f5b4b4f",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 48bff375509c4b50bbc83efdca796e9d",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 78fb65e903904240b261b718547744aa",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash d3cc99281a904ff1a5c595b436b1a320",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash c47eb4ee21644caa8ad3e987f3cc5842",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 49348c39e78f4144bd75459623079b98",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 2084468980874934a21235ef646695a1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 32d9082c0cd943849050c3eb8d44daeb",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 38eba05af3d34aebb25a08ed3da00e16",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 84c6096966a34bdbb413d56ccc4b8d22",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 7ce8725a10ce4018b59bcd662261a6f5",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash b9e1689087ff428f8f1bd778c258796e",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 6bb596d943b44356be039902c979dae1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash fc6e7fa6a7224746954f7b7231584bf1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 2425e94b499d4647bfa18d7aeb3f13a1",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash ceff4d0a799647dfa56995edb629e765",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash ef08bb91c1da4154b07c305e1fc2aa4c",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 51e0132f770e407cac5912e88b625cde",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 6812cfceb1af4b2b8d446a52b91812bd",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash a94c0dbc4e0243c2826eb619cdadae26",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash aa844e43d5d64c76a8e2cbb3c85fec50",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 0ac0f70cf05849138f30997dadfd6950",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 422ab6d8b3c44159a7d13133a5340c8b",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 6a45aa682088405e9ffe9bdf37070ffb",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 4e7144c18b1d4e559d6892f10b700fc2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash fe691355e6f640b8b9bdf74047466fe9",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 6d5fe7bc4629453099cd9e9e96abe786",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 9de885c590ce43d48c5cbe2bdd968f57",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 354fef786d624d0994f1e595998b0b9d",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash a65cca15468f4fbaaa2445ab7306edb7",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 83447c30434a4f4792b9f40436d309c5",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 3d5392cb9b34471287b40446338abe0a",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash aa5a9154bb974418ad796bcce489677b",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 550106acdb14484182a4b54c004e4cc3",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash ab99d133222e40c9a7b8b5c2e49ba3c8",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 640977ba09e04f91994b4831f564f47d",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash e1210fa4cb974bb8a7051bffb5689f8b",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 415f70db189140fabcf76e73c9fa08c2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash b1b8394b808049aca6c0f512704d8304",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 753d27008ee74832b8a45457f210b6e2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash ea721cbf0a434b71a717daeb7b0b8d02",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash e886dc8a68574d96829b168cd51346d2",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 370eec4c900844acb854590b6ec9f6c4",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash f483cb0c40e34ee68967fb4610ced46b",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash de08cb07754b402bb7d0dd4675f577ae",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 0ee88acef162458e8c1252c4e271f5f8",
+      "passed": true,
+      "detail": null
+    },
+    {
+      "check": "Response hash 7c0d414b3a1846b39e945bfd1ae76514",
       "passed": true,
       "detail": null
     },

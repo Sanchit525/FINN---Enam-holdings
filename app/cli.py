@@ -10,13 +10,23 @@ from .store import utcnow
 
 def main():
     parser=argparse.ArgumentParser(description='Real-source refresh. Never reads the experiment cache or invokes a model.')
-    parser.add_argument('command',choices=['refresh','status','export','rerank'])
+    parser.add_argument('command',choices=['refresh','status','export','rerank','research','query'])
     parser.add_argument('--tickers',nargs='+');parser.add_argument('--start');parser.add_argument('--end');parser.add_argument('--asof')
     parser.add_argument('--data-dir',default=os.environ.get('FINN_DATA_DIR','runtime'))
     parser.add_argument('--documents',type=int,default=2)
     parser.add_argument('--output',default='app/bootstrap.json.gz')
+    parser.add_argument('--force',action='store_true');parser.add_argument('--question',default='What are the business segments and management outlook?')
     args=parser.parse_args();store=Store(args.data_dir)
-    if args.command=='refresh':
+    if args.command in ('research','query'):
+        from .research import begin_research,run_research,retrieve
+        if not args.tickers:parser.error('Research/query requires --tickers')
+        for ticker in args.tickers:
+            if args.command=='research':
+                job,reused=begin_research(store,ticker,args.force)
+                if not reused:job=run_research(store,job)
+                print(json.dumps({'cached':reused,**job},indent=2),flush=True)
+            else:print(json.dumps(retrieve(store,ticker,args.question),indent=2),flush=True)
+    elif args.command=='refresh':
         symbols,start,end,asof=configuration(args.tickers,args.start,args.end,args.asof)
         try:job=store.begin_job(symbols,start.isoformat(),end.isoformat(),asof.isoformat())
         except BusyRefresh as error:print(json.dumps({'active':error.job}));return

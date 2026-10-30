@@ -36,7 +36,9 @@ def live_data(store):
                           'check':check,'windowCovered':covered,'filingCount':len([e for e in events if e['ticker']==ticker]),
                           'latestSuccessfulFilings':next((c for c in related if c['filings_status']=='passed'),None)})
     docs={};evidence={};latest_docs={}
-    for doc in sorted(store.rows('documents'),key=lambda d:d['checked_at']):latest_docs[doc['event_id']]=doc
+    event_ids={e['id'] for e in events}
+    for doc in sorted(store.rows('documents'),key=lambda d:d['checked_at']):
+        if doc['event_id'] in event_ids:latest_docs[doc['event_id']]=doc
     for event in events:
         doc=latest_docs.get(event['id'])
         event['evidence']=None
@@ -52,4 +54,9 @@ def live_data(store):
                         'attachmentsReady':sum(d['status']=='ready' for d in latest_docs.values()),'attachmentsFailed':sum(d['status']!='ready' for d in latest_docs.values()),
                         'attachmentsNotRequested':len(events)-len(latest_docs)},
             'autoRefreshEnabled':__import__('os').environ.get('FINN_AUTO_REFRESH','1')=='1',
-            'model':{'available':False,'reason':'AI research is disabled for this push slice. A genuinely free supported model route will be investigated separately; no model requests are made.'}}
+            'research':{r['ticker']:research_summary(r) for r in store.rows('research')},
+            'model':{'available':False,'reason':'Synthesis is unavailable. Questions retrieve original passages only; no model request is made.'}}
+
+
+def research_summary(record):
+    return {k:v for k,v in record.items() if k not in {'candidates','requests'}}

@@ -22,31 +22,33 @@ class SourceError(Exception):
         super().__init__(message);self.request_id=request_id
 
 
-def allowed_url(url):
+def allowed_url(url,hosts=None):
     p=urlsplit(url)
-    return p.scheme=='https' and p.hostname in HOSTS and p.port in (None,443) and not p.username and not p.password
+    return p.scheme=='https' and p.hostname in (HOSTS if hosts is None else hosts) and p.port in (None,443) and not p.username and not p.password
 
 
 class CheckedRedirect(HTTPRedirectHandler):
+    def __init__(self,hosts=None):
+        super().__init__();self.hosts=hosts
     def redirect_request(self,req,fp,code,msg,headers,newurl):
-        if not allowed_url(newurl): raise SourceError('Source redirected outside the NSE allowlist')
+        if not allowed_url(newurl,self.hosts): raise SourceError('Source redirected outside the explicit source allowlist')
         return super().redirect_request(req,fp,code,msg,headers,newurl)
 
 
 class SourceClient:
-    def __init__(self,store,timeout=12):
-        self.store=store;self.timeout=timeout
+    def __init__(self,store,timeout=12,hosts=None):
+        self.store=store;self.timeout=timeout;self.hosts=hosts
 
     def get(self,url,kind,limit=8_000_000):
-        if not allowed_url(url):raise SourceError('Unsupported source URL; only official NSE HTTPS hosts are fetched')
+        if not allowed_url(url,self.hosts):raise SourceError('Unsupported source URL; only explicit official-source HTTPS hosts are fetched')
         started=time.monotonic();body=b'';chunks=[]
         record=dict(url=url,kind=kind,retrieved_at=utcnow(),http_status=None,ok=False,final_url=url,job_id=getattr(self,'job_id',None))
         try:
             request=Request(url,headers={'User-Agent':'FINN-Assignment/0.2','Accept':'*/*'})
-            with build_opener(CheckedRedirect()).open(request,timeout=self.timeout) as response:
+            with build_opener(CheckedRedirect(self.hosts)).open(request,timeout=self.timeout) as response:
                 record.update(http_status=response.status,final_url=response.url,content_type=response.headers.get('Content-Type',''),
                               content_length=response.headers.get('Content-Length'),content_range=response.headers.get('Content-Range'))
-                if not allowed_url(response.url):raise SourceError('Unsupported final source host')
+                if not allowed_url(response.url,self.hosts):raise SourceError('Unsupported final source host')
                 if response.status!=200:raise SourceError(f'Unexpected HTTP {response.status}; partial responses are not treated as complete sources')
                 expected=response.headers.get('Content-Length')
                 if expected and int(expected)>limit:raise SourceError(f'Declared source size {int(expected):,} exceeds download limit {limit:,} bytes')

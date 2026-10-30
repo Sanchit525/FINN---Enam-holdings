@@ -1,6 +1,6 @@
 # FINN assignment requirements
 
-Reviewed on 2026-10-30 (Asia/Kolkata). Status: real local push workflow now verifies all fifteen EOD/announcement outcomes, filing evidence and mobile return state. The dated preview remains separate. Hosted phone access, generalised AR/transcript pull, synthesis and final submission remain pending; this push slice alone does not complete the checklist below.
+Reviewed on 2026-10-30 (Asia/Kolkata). Status: real local push verifies all fifteen EOD/announcement outcomes. Generic document discovery, full annual-report indexing and question-to-cited-passage retrieval are implemented and tested on INFY/CERA/TITAN plus unprepared ASIANPAINT/ITC; Apollo exercises real failures. The dated manual preview remains separate. Synthesis, hosted phone access, physical-phone testing and final submission remain pending; component checks do not collectively complete the checklist below.
 
 Sources: **M** = `1. ENAM_AI_Engineer_Build_Challenge_Main.pdf` (4 pages); **R** = `2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf` (3 pages). Page references below are PDF page numbers; M also prints matching page numbers. Both documents were read completely and every page visually inspected.
 

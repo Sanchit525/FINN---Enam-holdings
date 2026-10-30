@@ -1,4 +1,4 @@
-"""Local / free-host push service. Shared mobile assets; bounded background refresh."""
+"""Local / free-host source service. Shared mobile assets; bounded refresh and research."""
 import argparse
 import json
 import mimetypes
@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from .engine import configuration, ensure_document, run_refresh
 from .store import BusyRefresh, Store, utcnow
 from .views import evidence_for, live_data, public_document
+from .research import begin_research,run_research,retrieve,symbol,research_job
 
 ROOT=Path(__file__).resolve().parents[1]
 ASSETS=ROOT/'preview'/'dist'
@@ -26,6 +27,18 @@ class App:
         self.token=secrets.token_urlsafe(24)
         self.lock=threading.Lock();self.document_lock=threading.Lock()
         self.last_trigger=0;self.triggers=[]
+        self.research_triggers=[]
+
+    def start_research(self,body):
+        ticker=symbol(body.get('ticker'))
+        with self.lock:
+            now=time.monotonic();self.research_triggers=[t for t in self.research_triggers if now-t<86400]
+            if len(self.research_triggers)>=30:raise ValueError('Research discovery limit reached; stored passages remain searchable')
+            job,reused=begin_research(self.store,ticker,force=False)
+            if not reused:
+                self.research_triggers.append(now)
+                threading.Thread(target=run_research,args=(self.store,job),daemon=True,name='finn-research').start()
+            return job,reused
 
     def start_refresh(self,body=None,automatic=False):
         body=body or {}
@@ -80,13 +93,21 @@ def make_handler(app):
 
         def get_route(self):
             parsed=urlsplit(self.path);path=unquote(parsed.path);query=parse_qs(parsed.query)
-            if path=='/health':return self.send(200,{'status':'ok','mode':'real-source push','model_enabled':False})
+            if path=='/health':return self.send(200,{'status':'ok','mode':'real-source push and extractive pull','model_enabled':False})
             if path=='/api/data':
                 app.maybe_refresh();payload=live_data(app.store);payload['refreshToken']=app.token
                 return self.send(200,payload)
             if path.startswith('/api/jobs/'):
                 job=app.store.get('jobs',path.rsplit('/',1)[-1])
                 return self.send(200 if job else 404,job or {'error':'Job not found'})
+            if path.startswith('/api/research/jobs/'):
+                job=research_job(app.store,path.rsplit('/',1)[-1])
+                return self.send(200 if job else 404,job or {'error':'Research job not found'})
+            if path.startswith('/api/research/'):
+                try:ticker=symbol(path.rsplit('/',1)[-1])
+                except ValueError as error:return self.send(400,{'error':str(error)})
+                job=app.store.get('research',ticker)
+                return self.send(200 if job else 404,job or {'error':'No research loaded for this ticker'})
             if path.startswith('/api/filings/') and path.endswith('/evidence'):
                 event_id=path.split('/')[3]
                 if not app.store.get('filings',event_id):return self.send(404,{'error':'Unknown filing'})
@@ -122,18 +143,19 @@ def make_handler(app):
                         if doc:return self.send(302,b'',headers={'Location':doc['url']})
                 return self.send(404,{'error':'Demo archive asset unavailable'})
             filename='index.html' if path in ('/','/index.html') else path.lstrip('/')
-            if filename not in {'index.html','source.html','app.js','live.js','style.css','source.js'}:return self.send(404,{'error':'Not found'})
+            if filename not in {'index.html','source.html','app.js','live.js','pull.js','style.css','source.js'}:return self.send(404,{'error':'Not found'})
             content=(ASSETS/filename).read_bytes()
             mime=mimetypes.guess_type(filename)[0] or 'application/octet-stream'
             if filename.endswith('.html'):
                 live=query.get('demo')!=['1']
                 text=content.decode('utf-8').replace('<head>','<head><meta name="finn-mode" content="'+('live' if live else 'demo')+'">')
-                if live:text=text.replace('LOCAL PREVIEW','FETCHED DATA').replace('Local preview','Real-source push').replace('saved preview data','stored source data')
+                if live:text=text.replace('LOCAL PREVIEW','FETCHED DATA').replace('Local preview','Real-source workspace').replace('saved preview data','stored source data')
                 content=text.encode('utf-8');mime+='; charset=utf-8'
             self.send(200,content,mime)
 
         def do_POST(self):
-            if urlsplit(self.path).path!='/api/refresh':return self.send(404,{'error':'Not found'})
+            path=urlsplit(self.path).path
+            if path not in {'/api/refresh','/api/research','/api/research/query'}:return self.send(404,{'error':'Not found'})
             if not secrets.compare_digest(self.headers.get('X-FINN-Token',''),app.token):return self.send(403,{'error':'Refresh token missing or invalid; reload the page'})
             origin=self.headers.get('Origin')
             if origin and urlsplit(origin).netloc!=self.headers.get('Host'):return self.send(403,{'error':'Cross-origin refresh rejected'})
@@ -143,7 +165,8 @@ def make_handler(app):
                 if not 0<length<=16384:raise ValueError('Invalid request size')
                 body=json.loads(self.rfile.read(length))
                 if not isinstance(body,dict):raise ValueError('Refresh configuration must be an object')
-                job,reused=app.start_refresh(body)
+                if path=='/api/research/query':return self.send(200,retrieve(app.store,body.get('ticker'),body.get('question')))
+                job,reused=app.start_research(body) if path=='/api/research' else app.start_refresh(body)
                 self.send(202,{'job':job,'reused':reused})
             except (ValueError,TypeError) as error:self.send(400,{'error':str(error)})
     return Handler
@@ -159,7 +182,7 @@ def main():
     if args.no_auto_refresh:os.environ['FINN_AUTO_REFRESH']='0'
     app=App(args.data_dir)
     server=ThreadingHTTPServer((args.host,args.port),make_handler(app));server.daemon_threads=True
-    print(f'FINN real-source push: http://{args.host}:{args.port}',flush=True)
+    print(f'FINN real-source workspace: http://{args.host}:{args.port}',flush=True)
     print('Dated interaction demo: /?demo=1 · Models disabled · request-driven refresh only',flush=True)
     try:server.serve_forever()
     except KeyboardInterrupt:pass

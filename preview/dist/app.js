@@ -239,10 +239,10 @@ window.addEventListener('pagehide', ()=>{if(data&&!$('#evidence').open)remember(
     const response = await fetch(IS_LIVE?'/api/data':'/data.json');
     if (!response.ok) throw new Error('Saved data could not be loaded');
     data=await response.json();
-    if (!company()) ui.company='INFY';
+    if (!IS_LIVE && !company()) ui.company='INFY';
     const hash=location.hash.slice(1).split('/');
     if (['digest','companies','investigate'].includes(hash[0])) ui.route=hash[0];
-    if (ui.route==='investigate' && data.companies.some(c=>c.ticker===hash[1])) ui.company=hash[1];
+    if (ui.route==='investigate' && ((IS_LIVE && /^[A-Z0-9][A-Z0-9&-]{0,24}$/.test(hash[1]||'')) || data.companies.some(c=>c.ticker===hash[1]))) ui.company=hash[1];
     history.replaceState({ui:snapshot()},'',currentHash());render();
     if(IS_LIVE&&data.activeJob)pollLiveJob();
     requestAnimationFrame(()=>window.scrollTo(0,ui.positions[ui.route]||0));

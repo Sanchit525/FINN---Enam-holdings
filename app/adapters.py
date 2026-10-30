@@ -39,14 +39,18 @@ class SourceClient:
 
     def get(self,url,kind,limit=8_000_000):
         if not allowed_url(url):raise SourceError('Unsupported source URL; only official NSE HTTPS hosts are fetched')
-        started=time.monotonic();body=b''
+        started=time.monotonic();body=b'';chunks=[]
         record=dict(url=url,kind=kind,retrieved_at=utcnow(),http_status=None,ok=False,final_url=url,job_id=getattr(self,'job_id',None))
         try:
             request=Request(url,headers={'User-Agent':'FINN-Assignment/0.2','Accept':'*/*'})
             with build_opener(CheckedRedirect()).open(request,timeout=self.timeout) as response:
-                record.update(http_status=response.status,final_url=response.url,content_type=response.headers.get('Content-Type',''))
+                record.update(http_status=response.status,final_url=response.url,content_type=response.headers.get('Content-Type',''),
+                              content_length=response.headers.get('Content-Length'),content_range=response.headers.get('Content-Range'))
                 if not allowed_url(response.url):raise SourceError('Unsupported final source host')
-                chunks=[];size=0
+                if response.status!=200:raise SourceError(f'Unexpected HTTP {response.status}; partial responses are not treated as complete sources')
+                expected=response.headers.get('Content-Length')
+                if expected and int(expected)>limit:raise SourceError(f'Declared source size {int(expected):,} exceeds download limit {limit:,} bytes')
+                size=0
                 while True:
                     chunk=response.read(min(65536,limit+1-size))
                     if not chunk:break
@@ -54,10 +58,14 @@ class SourceClient:
                     if size>limit:raise SourceError(f'Source exceeds {limit:,}-byte cap')
                     if time.monotonic()-started>self.timeout:raise SourceError('Source transfer exceeded time budget')
                 body=b''.join(chunks)
+                expected=response.headers.get('Content-Length')
+                if expected and int(expected)!=len(body):raise SourceError('Downloaded bytes do not match declared Content-Length')
                 record['ok']=True
         except HTTPError as error:
             body=error.read(2000);record.update(http_status=error.code,error=f'HTTP {error.code}')
-        except Exception as error:record['error']=f'{type(error).__name__}: {error}'
+        except Exception as error:
+            if chunks:body=b''.join(chunks)
+            record['error']=f'{type(error).__name__}: {error}'
         record['seconds']=round(time.monotonic()-started,3)
         record=self.store.source(record,body)
         if not record['ok']:
@@ -104,6 +112,11 @@ def parse_eod(body,day):
 def priority(category,description):
     text=(category+' '+description).casefold()
     if 'newspaper' in text:return 'routine','publication','Publication copy; retained for inspection. No assumption of new operating information.'
+    scheduled=bool(re.search(r'board meeting intimation|meeting.*scheduled|meeting.*to be held',text))
+    if scheduled:
+        if re.search(r'raising.*funds|fund.?rais|trading in equity shares|listing',text):
+            return 'attention','planned-corporate','Listing/capital plans accompany a scheduled meeting. Review the original; this is not evidence that results or approvals have been delivered.'
+        return 'routine','scheduled-results','Scheduled meeting/possible results announcement. Results have not been inferred from this notice.'
     if re.search(r'financial results|audited financial|unaudited financial',text):
         return 'attention','results','Results filing: updated statements deserve review. Financial materiality is not inferred from the label.'
     if re.search(r'transcript',text):return 'attention','transcript','New transcript filing: management commentary may warrant review. Content and period must be checked.'
@@ -114,6 +127,12 @@ def priority(category,description):
     if re.search(r'schedule|invitation|meeting intimation|board meeting intimation|certificate under|compliance|closure of trading',text):
         return 'routine','notice-compliance','Scheduling/compliance metadata. Kept accessible; not treated as evidence of new results or call commentary.'
     return 'unreviewed','unknown','No matching priority rule. Unreviewed filings remain visible; the content has not been judged immaterial.'
+
+
+def priority_title(rule,category):
+    return {'results':'Financial results filed','transcript':'New transcript filed','management':'Leadership or auditor change',
+            'corporate-action':'Corporate development to review','planned-corporate':'Listing or capital plans to review',
+            'scheduled-results':'Scheduled meeting · results not yet inferred'}.get(rule,category)
 
 
 def parse_announcements(body,ticker,start,end):
@@ -134,9 +153,9 @@ def parse_announcements(body,ticker,start,end):
         tier,rule,reason=priority(category,description)
         import hashlib
         identity=str(raw.get('seq_id') or hashlib.sha256((ticker+url+published.isoformat()).encode()).hexdigest()[:24])
-        title={'results':'Financial results filed','transcript':'New transcript filed','management':'Leadership or auditor change','corporate-action':'Corporate development to review'}.get(rule,category)
+        title=priority_title(rule,category)
         result.append(dict(id='nse-'+ticker+'-'+identity,ticker=ticker,provider_company=raw.get('sm_name'),
-                           title=title,description=description,category=category,priority=tier,rule_id='push-v1:'+rule,reason=reason,
+                           title=title,description=description,category=category,priority=tier,rule_id='push-v2:'+rule,reason=reason,
                            url=url,date=published.date().isoformat(),published_at=published.isoformat(),time=raw['an_dt']+' IST',raw=raw,
                            summary='',manual=False,evidence=None))
     return result

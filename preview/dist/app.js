@@ -63,6 +63,7 @@ function eventCard(e) {
     <div class="card-meta"><span class="ticker">${escapeHTML(e.ticker)}</span><span>${dateLabel(e.date)} · ${badge('attention')}</span></div>
     <h3>${escapeHTML(e.title)}</h3>${IS_LIVE?'<div class="small-label">EXCHANGE DESCRIPTION · NOT AN AI SUMMARY</div>':''}<p>${escapeHTML(IS_LIVE?e.description:e.summary)}</p>
     <div class="why"><strong>Why it is here</strong>${escapeHTML(e.reason)}</div>
+    ${IS_LIVE&&e.document_error?`<div class="state-label"><strong>Attachment unavailable.</strong> ${escapeHTML(e.document_error)} Original source remains accessible.</div>`:''}
     <div class="card-actions">${eventAction(e)}<button class="arrow-button" data-investigate="${e.ticker}">Investigate <span aria-hidden="true">→</span></button></div>
     ${ui.read.includes(e.id)?'<div class="read-mark">✓ Evidence opened in this session</div>':''}
   </article>`;

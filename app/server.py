@@ -154,7 +154,10 @@ def main():
     parser.add_argument('--port',type=int,default=int(os.environ.get('PORT','8766')))
     parser.add_argument('--host',default='0.0.0.0' if os.environ.get('RENDER') else '127.0.0.1')
     parser.add_argument('--data-dir',default=os.environ.get('FINN_DATA_DIR',str(ROOT/'runtime')))
-    args=parser.parse_args();app=App(args.data_dir)
+    parser.add_argument('--no-auto-refresh',action='store_true',help='Inspect stored real data without automatic upstream requests; manual refresh remains available')
+    args=parser.parse_args()
+    if args.no_auto_refresh:os.environ['FINN_AUTO_REFRESH']='0'
+    app=App(args.data_dir)
     server=ThreadingHTTPServer((args.host,args.port),make_handler(app));server.daemon_threads=True
     print(f'FINN real-source push: http://{args.host}:{args.port}',flush=True)
     print('Dated interaction demo: /?demo=1 · Models disabled · request-driven refresh only',flush=True)

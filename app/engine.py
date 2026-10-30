@@ -124,13 +124,15 @@ def _ensure_document(store,event_id,client=None,force=False):
              title=event['ticker']+' · '+event['title'],kind='Exchange filing',period='Period not inferred from metadata',date=event['date'],url=event['url'],
              status='failed',checked_at=utcnow(),pages=[],note='',pageCount=None)
     try:
-        source,body=(client or SourceClient(store)).get(event['url'],'filing-pdf')
+        source,body=(client or SourceClient(store)).get(event['url'],'filing-pdf',limit=25_000_000)
         doc.update(source_id=source['id'],retrieved=source['retrieved_at'],sha256=source['sha256'])
         try:
             if not body.startswith(b'%PDF-'):raise SourceError('Attachment is not a PDF; no passage extracted')
+            if b'%%EOF' not in body[-4096:]:raise SourceError('PDF end-of-file marker is absent; incomplete/malformed response excluded')
             fitz=pdf_module()
             pdf=fitz.open(stream=body,filetype='pdf')
-            if pdf.needs_pass or pdf.page_count<1:raise SourceError('Encrypted or empty PDF')
+            if pdf.needs_pass:raise SourceError('PDF requires a password; no text extraction attempted')
+            if pdf.page_count<1:raise SourceError('PDF contains no pages')
             if pdf.is_repaired:raise SourceError('PDF required structural repair; excluded pending review')
             pages=[dict(number=i+1,text=pdf[i].get_text(sort=False).strip()) for i in range(min(pdf.page_count,60))]
             name=next(c['name'] for c in holdings() if c['ticker']==event['ticker'])

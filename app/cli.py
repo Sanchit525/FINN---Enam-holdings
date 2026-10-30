@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 from .engine import configuration, run_refresh
 from .store import BusyRefresh, Store
+from .adapters import priority,priority_title
+from .store import utcnow
 
 
 def main():
     parser=argparse.ArgumentParser(description='Real-source refresh. Never reads the experiment cache or invokes a model.')
-    parser.add_argument('command',choices=['refresh','status','export'])
+    parser.add_argument('command',choices=['refresh','status','export','rerank'])
     parser.add_argument('--tickers',nargs='+');parser.add_argument('--start');parser.add_argument('--end');parser.add_argument('--asof')
     parser.add_argument('--data-dir',default=os.environ.get('FINN_DATA_DIR','runtime'))
     parser.add_argument('--documents',type=int,default=2)
@@ -20,6 +22,13 @@ def main():
         except BusyRefresh as error:print(json.dumps({'active':error.job}));return
         print('STARTED '+json.dumps(job),flush=True)
         print(json.dumps(run_refresh(store,job,document_limit=args.documents),indent=2))
+    elif args.command=='rerank':
+        rows=store.rows('filings')
+        for event in rows:
+            tier,rule,reason=priority(event['category'],event['description'])
+            event.update(priority=tier,rule_id='push-v2:'+rule,reason=reason,title=priority_title(rule,event['category']),rule_updated_at=utcnow())
+            store.put('filings',event['id'],event,ticker=event['ticker'],published=event['published_at'])
+        print(json.dumps({'reranked':len(rows),'rule_version':'push-v2','source_requests':0,'retrieval_times_unchanged':True}))
     elif args.command=='export':
         snapshot=store.export_snapshot(args.output)
         print(json.dumps({'snapshot':args.output,'exported_at':snapshot['exported_at'],'counts':{k:len(v) for k,v in snapshot['tables'].items()},'bytes':Path(args.output).stat().st_size}))

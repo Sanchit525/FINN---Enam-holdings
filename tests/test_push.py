@@ -4,12 +4,13 @@ import io
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs,urlsplit
 
-from app.adapters import IST,SourceError,parse_announcements,parse_eod,priority
-from app.engine import configuration,holdings,run_refresh
+from app.adapters import IST,SourceClient,SourceError,parse_announcements,parse_eod,priority
+from app.engine import configuration,ensure_document,holdings,run_refresh
 from app.store import BusyRefresh,Store,utcnow
 from app.views import live_data
 
@@ -82,11 +83,30 @@ class PushTests(unittest.TestCase):
         self.assertEqual(priority('Updates','CFO resignation')[0],'attention')
         self.assertEqual(priority('Updates','Newspaper publication')[0],'routine')
         self.assertEqual(priority('Updates','Unrecognised event')[0],'unreviewed')
+    def test_scheduled_results_are_not_labelled_as_delivered_results(self):
+        ordinary=priority('Board Meeting Intimation','A meeting is scheduled to consider financial results')
+        self.assertEqual(ordinary[:2],('routine','scheduled-results'))
+        capital=priority('Updates','The meeting is scheduled to consider financial results and raising of funds')
+        self.assertEqual(capital[:2],('attention','planned-corporate'))
+        actual=priority('Financial Results','The Board meeting held today approved financial results')
+        self.assertEqual(actual[:2],('attention','results'))
     def test_configuration_rejects_today_future_and_unbounded_requests(self):
         today=datetime.now(IST).date()
         with self.assertRaises(ValueError):configuration(['INFY'],asof=today.isoformat())
         with self.assertRaises(ValueError):configuration(['NOT-IN-PORTFOLIO'])
         with self.assertRaises(ValueError):configuration(['INFY'],start=(today-timedelta(days=20)).isoformat(),end=today.isoformat())
+    def test_incomplete_pdf_never_becomes_an_evidence_passage(self):
+        self.run_job(['INFY'])
+        store=self.store
+        class PartialPDF:
+            def get(self,url,kind,limit=None):
+                body=b'%PDF-1.4 partial response without a trailer'
+                return store.source({'url':url,'final_url':url,'http_status':200,'retrieved_at':utcnow(),'ok':True,'fixture':True},body),body
+        doc=ensure_document(store,self.store.rows('filings')[0]['id'],client=PartialPDF())
+        self.assertEqual(doc['status'],'failed');self.assertEqual(doc['pages'],[])
+        self.assertNotIn('excerpt',doc)
+        self.assertIn('end-of-file',doc['error'])
+        self.assertEqual(self.store.get('sources',doc['source_id'])['validation'],'failed')
     def test_restart_and_snapshot_recovery_preserve_actual_dates(self):
         self.run_job(['INFY'])
         again=Store(self.temp.name);self.assertEqual(len(again.rows('filings')),1)
@@ -95,6 +115,35 @@ class PushTests(unittest.TestCase):
         quote=restored.rows('quotes')[0];self.assertEqual(quote['date'],self.day.isoformat())
         self.assertTrue(restored.get('meta','recovery'));self.assertFalse(restored.blob_path(restored.rows('sources')[0]['sha256']).exists())
         self.assertEqual(live_data(restored)['coverage']['checked'],1)
+    def test_actual_failed_response_stays_excluded(self):
+        self.run_job(['INFY']);store=self.store
+        body=(Path(__file__).parent/'fixtures'/'sunpharma-incomplete-response.bin').read_bytes()
+        self.assertEqual(len(body),131072);self.assertTrue(body.startswith(b'%PDF-'))
+        self.assertNotIn(b'%%EOF',body[-4096:])
+        class ActualFailedSample:
+            def get(self,url,kind,limit=None):
+                return store.source({'url':url,'final_url':url,'http_status':200,'retrieved_at':utcnow(),'ok':True,'fixture':'actual previously failed response'},body),body
+        doc=ensure_document(store,store.rows('filings')[0]['id'],client=ActualFailedSample())
+        self.assertEqual(doc['status'],'failed');self.assertNotIn('excerpt',doc)
+        self.assertIn('end-of-file',doc['error'])
+    def test_downloader_handles_short_reads_and_rejects_truncated_length(self):
+        class Response:
+            status=200;url='https://nsearchives.nseindia.com/test'
+            def __init__(self,length):self.headers={'Content-Length':str(length)};self.parts=[b'first',b'second',b'']
+            def __enter__(self):return self
+            def __exit__(self,*args):pass
+            def read(self,amount):return self.parts.pop(0)
+        class Opener:
+            def __init__(self,length):self.length=length
+            def open(self,*args,**kwargs):return Response(self.length)
+        with patch('app.adapters.build_opener',return_value=Opener(11)):
+            source,body=SourceClient(self.store).get('https://nsearchives.nseindia.com/test','unit-test')
+            self.assertEqual(body,b'firstsecond');self.assertEqual(source['bytes'],11)
+        with patch('app.adapters.build_opener',return_value=Opener(100)):
+            with self.assertRaises(SourceError) as captured:SourceClient(self.store).get('https://nsearchives.nseindia.com/test','unit-test')
+            source=self.store.get('sources',captured.exception.request_id)
+            self.assertFalse(source['ok']);self.assertEqual(source['bytes'],11)
+            self.assertIn('Content-Length',source['validation_error'])
 
 
 if __name__=='__main__':unittest.main()

@@ -48,5 +48,8 @@ def live_data(store):
             'documents':docs,'evidence':evidence,'briefs':{},'job':latest_job,'activeJob':store.active_job(),
             'recovery':store.get('meta','recovery'),'storage':'ephemeral' if __import__('os').environ.get('FINN_EPHEMERAL')=='1' else 'local',
             'coverage':{'checked':sum(c['check'] is not None for c in companies),'passed':sum(c['check'] is not None and c['coverage']=='saved' for c in companies),
-                        'failed':sum(c['coverage']=='partial' for c in companies),'notChecked':sum(c['check'] is None for c in companies)},
-            'model':{'available':False,'reason':'AI research is not enabled. Free API credits have not been confirmed; no model requests are made.'}}
+                        'failed':sum(c['coverage']=='partial' for c in companies),'notChecked':sum(c['check'] is None for c in companies),
+                        'attachmentsReady':sum(d['status']=='ready' for d in latest_docs.values()),'attachmentsFailed':sum(d['status']!='ready' for d in latest_docs.values()),
+                        'attachmentsNotRequested':len(events)-len(latest_docs)},
+            'autoRefreshEnabled':__import__('os').environ.get('FINN_AUTO_REFRESH','1')=='1',
+            'model':{'available':False,'reason':'AI research is disabled for this push slice. A genuinely free supported model route will be investigated separately; no model requests are made.'}}

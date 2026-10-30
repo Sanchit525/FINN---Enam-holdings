@@ -1,6 +1,6 @@
 # Decisions and delivery plan
 
-Updated 2026-10-30 (Asia/Kolkata). Deadline: Sunday, November 1, 2026 (M p. 1); exact hour/timezone unknown. Today plus October 31 and part of November 1 are available; a full 72-hour window is not assumed. A small local HTML/JS interaction preview is now implemented and browser-checked. Integrated ingestion, model calls, hosting and final-product acceptance are still pending.
+Updated 2026-10-30 (Asia/Kolkata). Deadline: Sunday, November 1, 2026 (M p. 1); exact hour/timezone unknown. Real local push ingestion, all fifteen EOD/feed outcomes and the mobile evidence journey are implemented and checked. Hosting, generalised pull research and model synthesis remain pending. Free tiers only; chargeable calls are disabled.
 
 ## Decision log
 
@@ -19,9 +19,11 @@ Updated 2026-10-30 (Asia/Kolkata). Deadline: Sunday, November 1, 2026 (M p. 1); 
 | D-011 | Proposed | Keep brokerage sync, payment flows and multiple alert channels outside this prototype despite requests in commercial-product reviews. Test digest-to-source navigation and return position with the full portfolio size. | Relevant/peripheral feedback distinction; mock portfolio and thin working prototype in assignment | Core retrieval works and remaining time permits read-state refinement |
 | D-012 | Local feasibility established; provider choice proposed | Use completed-session EOD data, with official NSE daily file a practical candidate and explicit source/date/missing-value handling. Prefer ticker-based NSE announcement/annual metadata plus issuer indexes. Do not infer cloud reliability or reuse rights from successful local requests. | R-018/R-019; V-011 to V-015 and V-040 to V-042 | Small actual-runtime retrieval check and full portfolio selection |
 | D-013 | Recommended scope reduction, not yet implemented | Core pull: concise business/management investigation from available annual report + actual call text, a few checked figures and visible coverage. Keep full four-quarter promise-versus-delivery optional. Cera is a viable manually checked analytical example; recent KPR calls and Apollo full-call ingestion unresolved. | R-020/R-021; explicit extraction and chronology failures in verification.md | If additional verified evidence and time make deeper comparison inexpensive |
-| D-014 | Recommended plan | Choose attention-first digest plus evidence-backed investigation. One FastAPI/Jinja/HTMX service, SQLite FTS5 + persistent volume, PyMuPDF and bounded jobs; propose Railway Singapore and GPT-6 Luna. Full plan below supersedes earlier undecided-stack proposals. | Requirements M pp. 1-4; R-013 to R-023; observed source/extraction constraints | Actual-runtime gate, ten factuality cases, credentials/budget input |
+| D-014 | Superseded stack/budget proposal | The earlier FastAPI/Jinja/persistent-volume/Railway/paid-model proposal is no longer the implementation or approved budget. | D-017 and the explicit free-only user update supersede it | Do not provision paid infrastructure or model usage |
 | D-015 | Bounded competitor recheck complete; design remains proposed | Keep the same five-product sample. Prioritise understandable event importance and passage-level evidence with a reliable return journey. Do not spend the remaining deadline window recreating brokerage integration, trading tools or enterprise research infrastructure. | Official-page and six-visual recheck; research.md comparison summary; V-048 to V-050. Sources/filtering already exist commercially; our usability opportunity is unproven. | Source/runtime checks or actual mobile task testing reveal a concrete need; no further generic market survey |
 | D-016 | Implemented for local preview only | Use buildless HTML/CSS/JS with a Python standard-library loopback server to inspect Digest, all 15 Companies, Investigate and Evidence before integration. Prepare dated local samples offline; summaries/priorities are manually authored and labelled. | User explicitly permits a simpler local HTML preview. No framework install or credential dependency. This is not an alternative production-architecture comparison or proof of live AI/generalisation. | Actual preview feedback; then return to the existing integrated-product plan |
+| D-017 | Implemented local push; free deployment prepared | Extend the existing screens with Python HTTP routes, SQLite, real NSE adapters and PyMuPDF. All 15 EOD/feed checks passed for the recorded window, 61 filings stored. Use temporary cache + dated recovery snapshot/request-triggered refresh on Render Free; no paid disk/cron/model calls. | User lifted preview-only boundary, imposed free tiers and asked cloud setup not to block local work. V-063 onward records full-data checks and limits. | Render account/repository access; actual hosted retrieval; next pull slice |
+| D-018 | Implemented validation/rule correction | Require full declared response length, EOF marker and structural checks; allow PDFs up to 25 MB. Preserve the actual incomplete Sun Pharma response; new complete 34-page download validates. Scheduled capital/board notices no longer receive a delivered-results title (`push-v2`). | Actual full-portfolio/browser inspection and regression tests; old failure retained rather than rewritten | Larger/unreadable files get explicit failures; ranking quality still needs broader audit |
 
 Proposals are not settled requirements. Explain significant decisions using: problem, evidence, alternatives, chosen trade-off, and how we will verify it. Record the reason before implementation makes a choice expensive to change.
 
@@ -116,36 +118,17 @@ Track access, extraction, period and version separately; multiple states can coe
 
 Examples to retain as regression evidence: CERA Yahoo null, KPR bad IR path and stale call, INFY separate press conference versus actual call, Apollo cover letter/403 and malformed revision. Do not silently fix Cera's apparent comparative-year typo or combine revenue presentations across periods. Failed table detection means no universal automatic table standardisation promise.
 
-### Architecture and stack recommendation
+### Current architecture and next pull boundary
 
-**One Python 3.12 service: FastAPI + Jinja2 templates + small self-hosted HTMX/vanilla JavaScript + CSS; SQLite with FTS5; PyMuPDF; one persistent filesystem volume; one model provider.** Use standard `sqlite3` and Pydantic schemas, not an ORM/migration service unless schema complexity warrants it. One Docker image and one Uvicorn process; SQLite WAL, short transactions and a bounded job queue in SQLite. No React build step, separate API deployment, Redis, vector database or agent framework. This is a scoped architecture recommendation, not a claim those tools are inherently unnecessary at scale.
+**Implemented:** one Python standard-library HTTP service reusing the existing HTML/CSS/JS screens, SQLite WAL with short transactions and a single refresh lease, content-addressed raw responses, PyMuPDF, and one process-wide PDF lock. No React rewrite, Redis, paid volume, scheduler, model SDK or provider request was added. The local tested runtime is Python 3.14.2; the prepared Render minor pin is 3.13 and still needs actual-runtime verification.
 
-```mermaid
-flowchart LR
-  S[NSE/Yahoo and issuer indexes] --> F[Bounded fetch and content checks]
-  F --> D[(SQLite: prices, filings, docs, jobs)]
-  F --> P[Volume: PDFs and page text by hash]
-  P --> R[Page chunks + SQLite FTS retrieval]
-  D --> C[Code: dates, ranking rules, calculations]
-  R --> M[LLM: bounded source-backed synthesis]
-  C --> U[FastAPI mobile pages]
-  M --> U
-  U --> E[Passage drawer + original source]
-```
+**Fetch and provenance:** fresh ordinary NSE requests, per-company outcomes, bounded windows/pacing/timeouts, byte caps, host/redirect allowlist, source UTC timestamps/HTTP status/length/SHA-256 and validation results. Financial-table meaning is not inferred from successful text extraction. PDF download limit is 25 MB; declared size and EOF/structure are checked. Actual failed bytes remain preserved. No retry of a block, cookie trick or arbitrary URL fetch is implemented.
 
-**Fetching:** refactor successful functions in `experiments/data_probe.py` into adapters; retain request manifests and selection lineage. Replace filesystem wildcard selection/first-match heuristics with database IDs, explicit fiscal periods, type/content checks and revision handling. Do not ship experiment cache semantics unchanged: successful stored URL reuse currently prevents freshness checks. Add timeouts/byte limits, conditional refresh where source supports it, modest per-host pacing and at most one bounded retry for transient errors. Never retry 403 as if it were transient. Guard downloaded URLs against private IPs/internal hosts and recheck redirects; only ticker/index-based discovery, not arbitrary user URL fetching. Document text is untrusted data, not instructions to tools or the model.
+**Storage and refresh:** local SQLite/raw files persist across restarts. Free-host files are temporary; the generated complete-data recovery snapshot retains original timestamps/text and omits PDF bytes. Request-driven stale catch-up runs only while the service is handling traffic; no scheduled work during sleep is promised. Manual refresh accepts selected/all configured holdings and bounded dates. The finishing local server uses `--no-auto-refresh` so opening it does not repeat the already successful portfolio fetch; the explicit Refresh button still performs real requests.
 
-**Storage:** minimal entities: companies/identifiers; holdings; EOD bars; filings with exchange ID and timestamps; documents with type/period/basis/version/access/extraction status; per-page chunks; evidence-backed facts; jobs; cached answers and model-usage records. Keep requested/final URL, retrieved_at UTC, source_date/reporting_period, content SHA256 and PDF page separately. Deduplicate by exchange ID plus attachment hash, retaining provenance for repeated exchange copies. PDFs/page text live under volume `/data`; SQLite there too. Keep secrets only in server environment. Browser localStorage holds read state/filter preferences, not API credentials.
+**Presentation:** generic `push-v2` metadata rules, every routine/unknown filing recoverable, 15-company EOD/source coverage, real extracted passage and original file/source routes. Price/previous-close arithmetic uses Decimal. Scheduled decisions are distinct from delivered results. AI investigation is visibly unavailable; demonstration briefs are in a separate dated mode.
 
-**Updates:** initially fetch filings hourly for 15 holdings, incremental overlapping window and deduplication; EOD at 18:30 IST on trading days with one later publication check if missing. No promise of instant alerts. Refresh annual/call metadata once daily and on explicit investigation when cache is stale; only download new hashes/versions. One scheduler inside the always-running process, with persisted due times and job leases so restart catches up once and duplicate jobs do not overlap. One extraction worker; do not parse 15 large reports concurrently. In-process scheduling tolerates short downtime and is explicitly not highly available. Show last successful check per company/source, plus failures.
-
-**Extraction/retrieval:** PyMuPDF text page by page, retaining page/section/bounding-box provenance and diagnostics. Reject structurally broken PDFs; isolate extraction in a bounded subprocess so errors cannot take down requests. Start with one report + latest eligible actual call per company, 500-900-word chunks with small within-section overlap and original page spans. FTS5 lexical retrieval plus simple query aliases and filters for ticker/type/period. Retrieve both AR and call context for the default brief; never silently search a different company. Broad snapshots use section-aware sampling; fail with an evidence limit if pertinent passages cannot be retrieved. Retrieval quality must be tested; FTS alone is not assumed sufficient for every semantic question. Add lightweight embeddings only after a demonstrated retrieval failure and remaining time justify them.
-
-**Figures:** EOD differences and any YoY/QoQ/margin arithmetic use Decimal/code. Never infer a number from prose or select column/basis solely by model confidence. Financial facts require metric, value, currency/unit, period, basis, source/page and verification status; bank metrics differ from manufacturing. Core UI may show extracted candidate figures only after checks/manual verification; otherwise show source passage and unavailable figure. Do not hardcode CERA/KPR numbers into generic company logic. The failed table parser makes generic Revenue/EBITDA/PBT/PAT comparisons a stretch, not a core dependency.
-
-**Model calls:** use a small structured response for event summary/proposed category, and a single bounded synthesis for an investigation with selected excerpts and verified facts. Model returns claim text plus allowed chunk IDs; server checks reference IDs exist and cited spans contain the claimed passage. That checks linkage, not entailment, so sample factuality audit remains required. No unrestricted browsing/tools, model arithmetic, invented pages, outside company knowledge, or one model call per routine filing merely to produce verbose text. Low-value filings can retain their original exchange title.
-
-**Caching:** content extraction by hash + extractor version; summaries by hash + model/prompt/schema version; investigations by ticker/question/eligible-source hashes/period/fact version. New evidence invalidates affected answers. Previously generated answers retain generated_at/source-set dates; an outage returns explicitly dated cached content or an error. Show a partial answer only where supported, not a fake successful completion. Limit duplicate simultaneous jobs, question length, token budgets and daily spend. On cache hit, no model call. On model outage, filing feed/prices/documents remain useful.
+**Next pull slice, not yet implemented:** annual-report and actual-transcript discovery for arbitrary available NSE symbols; correct identity/period/version checks; page chunks and bounded lexical retrieval, then cited extractive research. Investigate one genuinely free supported model route separately before enabling synthesis. Preserve source-only grounding, no model arithmetic/outside company knowledge, correct citation IDs/pages and ten factuality cases. Add a process boundary or embeddings only if measured need justifies it. No claim that FTS, an embedding model or free model quota has already been tested.
 
 ### Discovery for an unfamiliar NSE ticker
 
@@ -159,28 +142,24 @@ flowchart LR
 
 ### Model and hosting choice
 
-Current official sources, prices, limits and cost assumptions are recorded in research.md R-022/R-023. Recommend **GPT-6 Luna** via server-side Responses API, low reasoning to start. Keep **GPT-6.1 Sol** as an explicit optional escalation for failed analytical evaluations, not automatic double-calling. **Gemini 3.5 Flash-Lite** is the alternative if Google access/free quota is preferable; do not build two provider integrations now. No evidence yet that any candidate meets our financial factuality bar: test 10 source-grounded cases first.
+**Free tiers only.** Render Free is the prepared route; login/repository access and an actual hosted NSE check are pending. Its temporary-storage/request-triggered design is described above and in app/README.md. No paid Railway plan, disk, cron or API budget is approved.
 
-Recommend **Railway Hobby, Singapore, one persistent volume, no sleep**, subject to account access and user acceptance of the paid budget. It supports the single-service/SQLite design and is a $5 monthly minimum including $5 usage; usage above that costs extra. Target hosting allowance $10 and API allowance $5 for this submission, excluding taxes; these are proposed budgets, not charges or guaranteed ceilings. Track cost and configure provider controls when available. Render paid service + disk is an alternative; Render Free's sleeping/ephemeral filesystem is unsuitable for this chosen scheduled persistent design. Its exact current compute total was not extracted, so no invented price comparison.
+**Models remain disabled.** The user is uncertain about OpenAI credits; do not ask the same question again, infer free use from an API key, or make a chargeable call. The next pull stage will investigate a genuinely free supported route. Source discovery/extraction/retrieval can proceed independently.
 
-### Ordered implementation plan after this planning stage
+### Remaining implementation plan
 
-Estimate 12-16 focused hours plus submission buffer. The user's actual availability is not known; do not treat the earlier 16-20-hour assumption as guaranteed. Deadline Nov 1 has no stated cutoff/timezone; aim for usable deployment Oct 31 evening, no late feature expansion. If available time is shorter, remove optional depth before core workflows or checks.
+Deadline Nov 1 has no supplied cutoff/timezone. Keep October 31 evening as the target for a usable reviewer deployment and preserve November 1 for access checks/submission. Estimates below are focused work budgets, not assumptions about user availability.
 
-| Order | Budget | Deliverable / stop condition |
+| Order | Budget / status | Deliverable / stop condition |
 | --- | --- | --- |
-| 0 | User setup | Confirm paid hosting/API budget and provision one provider key + hosting access securely. No secrets in chat or repo. Select reviewer-access route. |
-| 1 | 45-60 min | Small retrieval/extraction job in the **actual Railway Singapore service/runtime**, before full UI. Fetch completed EOD file, NSE INFY/CERA metadata, one original results attachment, AR + actual call; repeat one non-demo ticker. Persist/restart and read back hashes; record time/memory/status. Reject hosted source failures as unresolved, not local success. |
-| 2 | 1.5-2 h | Refactor adapters, SQLite schema/statuses, metadata-driven discovery, source manifest and bounded jobs; run coverage pass for all 15. Do not spend hours chasing every blocked transcript. |
-| 3 | 2-3 h | One complete push slice: refresh -> rank -> mobile digest/EOD -> evidence -> return position. Then populate portfolio and honest coverage states. |
-| 4 | 2-3 h | Pull discovery/extraction/retrieval, one model integration and source drawer. Run ten factuality cases before adding follow-ups. |
-| 5 | 1-1.5 h | Fresh-ticker generalisation tests, caches/scheduler restart, failure fixtures, public abuse/cost controls; resolve core failures. |
-| 6 | 1.5-2 h | Real phone/mobile browser QA, measured tasks/latency, final coverage and number audits; deploy known-good version. |
-| 7 | 1-1.5 h | Repo startup check, reviewer link access, AI history export/share, short covering email and known limits. Reserve Nov 1 for this and essential fixes. |
+| 1 | Complete locally | Real EOD/announcements for all fifteen, deterministic priorities, filing validation and mobile evidence return. Dataset and checks recorded in verification.md. |
+| 2 | 30–45 min when access exists, parallel to local work | Connect repo to Render **Free**, deploy prepared service, test actual hosted NSE retrieval, sleep/restart recovery and timestamps. If blocked, report exact runtime outcome; no paid workaround or challenge bypass. |
+| 3 | 2–3 h | Generalised AR + actual-call discovery and page retrieval, prepared research cases and an unprepared ticker; honest partial/unavailable states. No company-specific canned answers. |
+| 4 | 45–60 min bounded route check, then 1–2 h if feasible | Establish a genuinely free supported model path before any synthesis call; add one provider and ten grounded factuality cases. If unavailable, retain explicit unavailable state and disclose the remaining analytical limitation. |
+| 5 | 1–1.5 h | Actual phone and additional viewport checks, fresh-ticker/failure tests, source/number audits, hosted cold-start latency and memory measurement. Fix core failures only. |
+| 6 | 1–1.5 h + submission buffer | Clean-checkout startup, reviewer access to prototype/repo/actual AI history, covering email with decisions/omissions/limits. No email send without user instruction. |
 
-Optional CERA guidance example only after all core acceptance checks pass and at least one hour remains **beyond** final packaging buffer. It uses reviewed historical sources and labels 7.0418% standalone reported growth versus conditional 7-8% FY26 expectation; no universal guidance engine, margin verdict or FY27 delivery claim.
-
-Actual-runtime gate: repeat after restart and again after >=15 minutes; successful status/real content, correct identity/date, original attachment signature, usable AR/call pages, persistence, no bypass. Targets: per upstream request timeout <=25 seconds; ingestion job bounded to 3 minutes for normal source set and explicit failure thereafter; peak memory measured under the chosen instance allowance, with one PDF at a time. If that fails, use Render as a single time-boxed alternative, or stop and report a source/runtime blocker. A Docker run on this laptop is not a hosted test. No broad infrastructure rewrite or proxy/CAPTCHA workaround.
+Optional CERA guidance example remains deferred until core push/pull and submission checks pass. No universal four-quarter promise-versus-delivery claim is made.
 
 ### Deliberate omissions and scale path
 
@@ -188,11 +167,9 @@ Leave out universal four-quarter comparison, broad automatic financial table nor
 
 At larger scale: move PDF blobs to object storage and SQLite to Postgres; split ingestion/extraction into durable queued workers; add multi-user entitlements and robust operations. Add embeddings if measured retrieval needs them; add licensed feeds/OCR only after need/rights/cost are established. This is a future path, not additional infrastructure for the prototype.
 
-### Input and credential requirements
+### Setup still needed
 
-Presence-only check: OPENAI_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY, RAILWAY_TOKEN, RENDER_API_KEY, GITHUB_TOKEN and GH_TOKEN were unset in this process; no workspace .env/Dockerfile/app manifest was present. Values were never read/printed. This does not rule out credentials in another secure store or existing account sessions.
-
-Real inputs needed before dependent implementation: acceptance of the proposed hosting/API spend (or a zero-spend constraint), usable hosting/GitHub access and reviewer visibility, and one model API credential configured through a secret mechanism. Do not ask for keys pasted into the conversation. Budget/provider recommendations do not authorise purchases. No extra product-choice questionnaire is needed to make this plan concrete.
+Render sign-in and a Git repository connection/visibility choice are needed for deployment. The dashboard reached `/login`; no host account or service was created. Local commits exist, but nothing has been pushed or published. Configure secrets through a secure mechanism if/when a genuinely free model route needs them; never paste keys into chat. No additional credit question or paid-budget confirmation is needed to finish the independent push work.
 
 ## Submission preparation later
 

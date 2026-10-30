@@ -1,6 +1,6 @@
 # FINN assignment requirements
 
-Reviewed on 2026-10-30 (Asia/Kolkata). Status: document review complete; a local interaction preview now exists under `preview/`. Integrated data/AI workflows and final submission requirements remain unverified. The preview alone does not complete the checklist below.
+Reviewed on 2026-10-30 (Asia/Kolkata). Status: real local push workflow now verifies all fifteen EOD/announcement outcomes, filing evidence and mobile return state. The dated preview remains separate. Hosted phone access, generalised AR/transcript pull, synthesis and final submission remain pending; this push slice alone does not complete the checklist below.
 
 Sources: **M** = `1. ENAM_AI_Engineer_Build_Challenge_Main.pdf` (4 pages); **R** = `2. ENAM_AI_Engineer_Build_Challenge_Reference.pdf` (3 pages). Page references below are PDF page numbers; M also prints matching page numbers. Both documents were read completely and every page visually inspected.
 

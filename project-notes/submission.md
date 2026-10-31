@@ -32,14 +32,14 @@ The product connects a 15-company portfolio digest to focused company investigat
 
 I prioritised a small mobile workflow and traceable evidence over a broad dashboard. Python, SQLite, PyMuPDF and buildless HTML/CSS/JavaScript keep the architecture compact. Retrieval/validation are separate from explanation; reported figures are checked rather than delegated to model arithmetic. Unfamiliar NSE symbols work where documents are available, with honest missing-source states.
 
-Local validation includes 40 offline tests, push/retrieval checks and ten source-reviewed answer cases, with failed first passes preserved. The actual Render Free service passed source search, a 15-company EOD/filings refresh using October 30 EOD, and redeployment recovery. [RESOLVE HOSTED AI STATUS FROM release.md BEFORE SENDING: currently disabled pending key approval.] This small audit does not guarantee every answer. Free-host storage is ephemeral and upstream/model quota can fail; source-only recovery preserves dated evidence. I omitted broker integrations, trading advice, intraday feeds, OCR and universal financial-table normalisation. Next steps would be broader source/answer evaluation, durable ingestion and physical-phone testing with investors.
+Local validation includes 40 offline tests, push/retrieval checks and ten source-reviewed answer cases, with failed first passes preserved. The actual Render Free service passed source search, a 15-company EOD/filings refresh using October 30 EOD, redeployment recovery, and a real uncached cited Gemini answer followed by a cached repeat. That answer correctly reports Infosys growth from actual-call PDF p25; provider generation took 3.297 seconds in this case. One client connection timed out before health; verification succeeded through another DNS-returned address with normal HTTPS verification. This small audit does not guarantee every answer or network/latency outcome. Free-host storage is ephemeral and upstream/model quota can fail; source-only recovery preserves dated evidence. I omitted broker integrations, trading advice, intraday feeds, OCR and universal financial-table normalisation. Next steps would be broader source/answer evaluation, durable ingestion and physical-phone testing with investors.
 
 Regards,
 Sanchit Arora
 
 ## Before sending
 
-- Replace deployment/history placeholders with verified links or actual attachments.
+- History-sharing permission is still pending separately. Add actual approved share links/exports before sending; project notes and Git history are not substitutes.
 - Open prototype, repository and history links signed out/on a phone.
 - Confirm intended version and exact subject; submit before the unspecified cutoff.
 - This is a draft. No email has been sent.

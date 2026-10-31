@@ -1,6 +1,6 @@
 # Decisions and delivery plan
 
-Updated 2026-10-31 (Asia/Kolkata). Deadline November 1, 2026; cutoff unspecified. Local push, generic retrieval and fixed Gemini source-grounded answers are implemented. Hosting verification, physical-phone access and submission history links remain pending in release.md. Free tiers only. Earlier stack/model proposals are historical and superseded by implementation decisions.
+Updated 2026-10-31 (Asia/Kolkata). Deadline November 1, 2026; cutoff unspecified. Real push, generic retrieval and fixed Gemini answers are implemented and hosted on Render Free. Actual source refresh, recovery and cited generation/cache verification passed. Physical-phone testing, separate history-sharing permission/links and manual submission remain pending in release.md. Earlier stack/model/access proposals below are historical and superseded by current release evidence.
 
 ## Decision log
 

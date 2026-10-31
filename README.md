@@ -3,7 +3,7 @@
 FINN is a mobile-first recruitment prototype for following Indian listed companies: a portfolio digest helps decide what to review, and company investigation answers focused questions from annual reports and actual earnings-call transcripts.
 
 **Repository:** https://github.com/Sanchit525/FINN---Enam-holdings
-**Hosted prototype:** https://finn-enam-holdings.onrender.com — Render Free. Source search, actual hosted refresh and redeployment recovery passed. Hosted AI is explicitly unavailable pending approval to store the server key in Render; see the [release record](project-notes/release.md).
+**Hosted prototype:** https://finn-enam-holdings.onrender.com — Render Free. Source search, actual hosted refresh, redeployment recovery and real cited Gemini answers/cache reuse passed; see the [release record](project-notes/release.md).
 
 ## Try the two workflows
 
@@ -39,6 +39,8 @@ For generated answers, set `GEMINI_API_KEY` in the server environment or ignored
 ## Verification
 
 **40/40 offline tests**, **152/152 push/data checks**, **157/157 document/retrieval checks** locally. All **ten source-reviewed audit cases** have acceptable final outputs: nine real-company questions plus one isolated synthetic document-instruction challenge. Seven outputs were reused; failed cases were selectively rerun. This is a small mixed-prompt audit, not a fresh ten-case benchmark of the final prompt. Initial failures remain recorded.
+
+Hosted generation/cache probe: **8/8 passed**. A real uncached Gemini response cited Infosys call PDF p25; its repeat came from cache. Provider generation took **3.297 seconds** for that case, not an end-to-end latency guarantee. One client connection timed out before reaching health; selecting the other DNS-returned address succeeded with the original HTTPS hostname and certificate verification intact. Details remain in `app/verification/hosted-answer.json`.
 
 Run `python -m unittest discover -s tests`. The real-model audit is operator-only and consumes quota; do not rerun it just to open the app. [Detailed evidence](project-notes/verification.md), [model audit](app/verification/gemini-cases.json), [actual hosted checks](project-notes/release.md).
 

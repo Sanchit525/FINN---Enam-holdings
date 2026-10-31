@@ -69,7 +69,7 @@ POST `/api/research` starts/reuses a job; GET `/api/research/jobs/<id>` reports 
 
 ## Free hosting preparation
 
-`render.yaml` selects only a Free Python web service; no disk, paid cron, database or model credentials are declared. `.python-version` pins the 3.13 series. Render login/repository connection is still required, followed by a real hosted-source check. Do not add a payment method or paid service to make a deployment succeed without new authorisation.
+`render.yaml` selects only a Free Python service; no disk, paid cron, database or secret value is declared. `.python-version` pins 3.13. The service is deployed at https://finn-enam-holdings.onrender.com with the separately approved Gemini key in Render's secret environment. Actual hosted source refresh, retrieval, recovery and generation/cache checks passed; see `../project-notes/release.md`. No payment method or paid upgrade was added.
 
 Free-host cache is ephemeral. Export a complete, automatically collected local refresh with:
 

@@ -1,13 +1,13 @@
 'use strict';
 const IS_LIVE = document.querySelector('meta[name="finn-mode"]')?.content === 'live';
-const STORAGE_KEY = IS_LIVE ? 'finn-live-v1' : 'finn-preview-v1';
+const STORAGE_KEY = IS_LIVE ? 'finn-live-v2' : 'finn-preview-v1';
 const $ = (selector) => document.querySelector(selector);
 const escapeHTML = (value = '') => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (n) => '₹' + n.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
 const badgeText = {saved:'Saved sources', stale:'Stale call', partial:'Partial coverage', missing:'Not loaded', attention:'For review', routine:'Routine', unreviewed:'Unreviewed'};
 const badge = (status, text) => `<span class="badge ${escapeHTML(status)}">${escapeHTML(text || badgeText[status] || status)}</span>`;
 const dateLabel = date => new Date(date + 'T12:00:00+05:30').toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-const defaults = {route:'digest', period:IS_LIVE?'window':'week', digestCompany:'all', digestView:'all', filtersOpen:false, search:'', sort:'name', company:'INFY', question:'snapshot', positions:{digest:0, companies:0, investigate:0}, read:[]};
+const defaults = {route:'digest', period:IS_LIVE?'day':'week', digestCompany:'all', digestView:'all', filtersOpen:false, alertSettingsOpen:false, search:'', sort:'name', company:'INFY', question:'snapshot', positions:{digest:0, companies:0, investigate:0}, read:[]};
 let data, ui = structuredClone(defaults), loading = false, modalOrigin = null, modalY = 0, toastTimer, scrollTimer;
 
 try {
@@ -109,11 +109,12 @@ function renderCompanyResults() {
       if (change(a)===null || change(b)===null) return Number(change(a)===null) - Number(change(b)===null) || a.name.localeCompare(b.name);
       return (change(a)-change(b))*(ui.sort==='move-desc'?-1:1);
     }
+    if (ui.sort==='volume') { const r=c=>c.market?.baseline_ready&&typeof c.market.volume_ratio==='number'?c.market.volume_ratio:-1; return r(b)-r(a) || a.name.localeCompare(b.name); }
     if (ui.sort==='coverage') return (IS_LIVE ? Number(a.coverage!=='saved')-Number(b.coverage!=='saved') : Number(!data.briefs[a.ticker])-Number(!data.briefs[b.ticker])) || a.name.localeCompare(b.name);
     return a.name.localeCompare(b.name);
   });
   $('#company-count').textContent = `${rows.length} of 15 companies`;
-  $('#company-results').innerHTML = rows.length ? rows.map(c => `<button class="company-row" data-investigate="${c.ticker}" data-testid="company-${c.ticker}" aria-label="Investigate ${escapeHTML(c.name)}"><span class="monogram" aria-hidden="true">${escapeHTML(c.name.split(' ').map(n=>n[0]).join('').slice(0,2))}</span><span class="company-copy"><strong>${escapeHTML(c.name)}</strong><small>${c.ticker} · ${escapeHTML(c.sector)}</small>${badge(c.coverage,IS_LIVE?(c.coverage==='saved'?'Sources fetched':c.coverage==='partial'?'Check coverage':'Not checked'):null)}</span><span class="company-price">${c.quote?`${money(c.quote.close)}<small class="${change(c)>=0?'up':'down'}">${change(c)===null?'Change unavailable':(change(c)>=0?'+':'')+change(c).toFixed(2)+'%'}</small>${IS_LIVE?'<small>'+dateLabel(c.quote.date)+' EOD</small>':''}`:'<small>Price unavailable</small>'}<small aria-hidden="true">Open →</small></span></button>`).join('') : `<div class="empty"><h2>No matching company.</h2><p>Search one of the fifteen selected names or NSE tickers.</p><button class="secondary" id="clear-search">Clear search</button></div>`;
+  $('#company-results').innerHTML = rows.length ? rows.map(c => `<button class="company-row" data-investigate="${c.ticker}" data-testid="company-${c.ticker}" aria-label="Investigate ${escapeHTML(c.name)}"><span class="monogram" aria-hidden="true">${escapeHTML(c.name.split(' ').map(n=>n[0]).join('').slice(0,2))}</span><span class="company-copy"><strong>${escapeHTML(c.name)}</strong><small>${c.ticker} · ${escapeHTML(c.sector)}</small>${badge(c.coverage,IS_LIVE?(c.coverage==='saved'?'Sources fetched':c.coverage==='partial'?'Check coverage':'Not checked'):null)}</span><span class="company-price">${c.quote?`${money(c.quote.close)}<small class="${change(c)>=0?'up':'down'}">${change(c)===null?'Change unavailable':(change(c)>=0?'+':'')+change(c).toFixed(2)+'%'}</small>${IS_LIVE?'<small>'+(c.market?.baseline_ready&&typeof c.market.volume_ratio==='number'?'Vol '+c.market.volume_ratio.toFixed(1)+'× avg · ':'')+dateLabel(c.quote.date)+'</small>':''}`:'<small>Price unavailable</small>'}<small aria-hidden="true">Open →</small></span></button>`).join('') : `<div class="empty"><h2>No matching company.</h2><p>Search one of the fifteen selected names or NSE tickers.</p><button class="secondary" id="clear-search">Clear search</button></div>`;
 }
 function renderInvestigate() {
   if (IS_LIVE) return renderLiveInvestigate();
@@ -154,11 +155,13 @@ function showEvidence({evidenceId, eventId, docId, quote}, push = true, update =
     history.pushState({ui:snapshot(), modal:{evidenceId,eventId,docId,quote}}, '', currentHash()+'/evidence');
   }
   if (eventId && !ui.read.includes(eventId)) { ui.read.push(eventId); persist(); }
-  const sourceURL = doc?.url || event?.url;
+  const ticker = event?.ticker || doc?.ticker || ev?.ticker;
+  const sourceURL = doc?.url || event?.url || event?.attachment_url || (ticker ? 'https://www.nseindia.com/get-quotes/equity?symbol='+encodeURIComponent(ticker) : 'https://www.nseindia.com/companies-listing/corporate-filings-announcements');
+  const host = (() => { try { return new URL(sourceURL).hostname; } catch { return 'Exchange record'; } })();
   const context = ev?.context || doc?.note || (IS_LIVE?'Exchange metadata is available. The original attachment will be fetched and validated before a passage is shown. No AI summary is generated.':'Only exchange metadata was saved for this example. No PDF passage or AI summary is available. The original filing may contain information not reflected in this preview.');
   const passage = quote || ev?.passage || doc?.pages[0]?.text;
   $('#evidence-content').innerHTML = `<div class="drawer-head"><div><span class="eyebrow">${doc?'PRIMARY-SOURCE EVIDENCE':'SAVED EXCHANGE METADATA'}</span><h2 id="evidence-title">${escapeHTML(title)}</h2></div><button class="close-drawer" id="close-evidence" aria-label="Close evidence and return">×</button></div>
-    <div class="drawer-body"><dl class="source-meta"><dt>Document</dt><dd>${escapeHTML(doc?.title || event?.category)}</dd><dt>Period / date</dt><dd>${escapeHTML(doc?.period || event?.time)}${doc?' · '+escapeHTML(doc.date):IS_LIVE?'':' IST'}</dd>${page?`<dt>PDF page</dt><dd>${page} of ${doc.pageCount} · <a href="/source.html?doc=${doc.id}&page=${page}${IS_LIVE?'':'&demo=1'}" target="_blank" rel="noopener">Read saved page ↗</a></dd>`:''}<dt>Source</dt><dd>${new URL(sourceURL).hostname}</dd><dt>${IS_LIVE?'Retrieved':'Saved on'}</dt><dd>${IS_LIVE?escapeHTML(istTime(doc?.retrieved || event?.retrieved_at)):'30 Oct 2026 · experiment sample'}</dd></dl>
+    <div class="drawer-body"><dl class="source-meta"><dt>Document</dt><dd>${escapeHTML(doc?.title || event?.category)}</dd><dt>Period / date</dt><dd>${escapeHTML(doc?.period || event?.time)}${doc?' · '+escapeHTML(doc.date):IS_LIVE?'':' IST'}</dd>${page?`<dt>PDF page</dt><dd>${page} of ${doc.pageCount} · <a href="/source.html?doc=${doc.id}&page=${page}${IS_LIVE?'':'&demo=1'}" target="_blank" rel="noopener">Read saved page ↗</a></dd>`:''}<dt>Source</dt><dd>${escapeHTML(host)}</dd><dt>${IS_LIVE?'Retrieved':'Saved on'}</dt><dd>${IS_LIVE?escapeHTML(istTime(doc?.retrieved || event?.retrieved_at)):'30 Oct 2026 · experiment sample'}</dd></dl>
     ${doc?.status && !['saved','ready'].includes(doc.status)?`<div class="state-label"><strong>${badgeText[doc.status] || doc.status}.</strong> ${escapeHTML(doc.note)}</div>`:''}
     <p class="drawer-context">${escapeHTML(context)}</p>
     ${passage?`<div class="small-label">ORIGINAL SOURCE PASSAGE · WHITESPACE MAY BE NORMALISED</div><blockquote class="source-passage ${passage.length>1300?'long':''}">${escapeHTML(passage)}</blockquote>`:`<div class="state-label"><strong>${IS_LIVE?'Passage not loaded.':'Passage not saved.'}</strong> Exchange description below is metadata, not an extracted filing passage.</div><blockquote class="source-passage">${escapeHTML(event.description)}</blockquote>`}
@@ -187,6 +190,7 @@ document.addEventListener('click', event => {
   else if (button.dataset.document) showEvidence({docId:button.dataset.document});
   else if (button.dataset.event) {
     const e = data.events.find(e=>e.id===button.dataset.event);
+    if (!e) { announce('That filing has moved after an update. Showing the latest list.'); render(); return; }
     if(IS_LIVE)openLiveEvent(e.id);else showEvidence({eventId:e.id, evidenceId:e.evidence});
   } else if (button.dataset.filter) { ui.digestView = button.dataset.filter; renderDigest(); remember(); }
   else if (button.dataset.question) { ui.question=button.dataset.question; const y=window.scrollY; renderInvestigate(); window.scrollTo(0,y); remember(); }
@@ -195,7 +199,7 @@ document.addEventListener('click', event => {
     if(IS_LIVE){refreshLive();return;}
     loading=true; renderDigest();
     setTimeout(()=>{loading=false;if(ui.route==='digest')renderDigest();announce('Loading replay complete · saved data unchanged');}, 1500);
-  } else if (button.id==='reset-digest') { ui.period=IS_LIVE?'window':'week';ui.digestCompany='all';ui.digestView='all';renderDigest();remember(); }
+  } else if (button.id==='reset-digest') { ui.period='week';ui.digestCompany='all';ui.digestView='all';renderDigest();remember(); }
   else if (button.id==='clear-search') { ui.search='';$('#company-search').value='';renderCompanyResults();remember();$('#company-search').focus(); }
   else if (button.id==='return-view') { if (history.state?.ui && history.length>1) history.back(); else navigate('companies'); }
 });

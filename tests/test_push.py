@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import parse_qs,urlsplit
 
-from app.adapters import IST,SourceClient,SourceError,parse_announcements,parse_eod,priority
+from app.adapters import IST,SourceClient,SourceError,classify,parse_announcements,parse_eod,priority
 from app.engine import configuration,ensure_document,holdings,run_refresh
 from app.store import BusyRefresh,Store,utcnow
 from app.views import live_data
@@ -76,8 +76,16 @@ class PushTests(unittest.TestCase):
     def test_wrong_company_and_attachment_host_rejected(self):
         row={'symbol':'CERA','an_dt':self.day.strftime('%d-%b-%Y')+' 12:00:00','attchmntFile':'https://nsearchives.nseindia.com/corporate/a.pdf'}
         with self.assertRaises(SourceError):parse_announcements(json.dumps([row]).encode(),'INFY',self.day,self.day)
+        # An unsupported or missing attachment no longer hides the company's whole feed: the filing stays as
+        # metadata, and the attachment is never fetched.
         row['symbol']='INFY';row['attchmntFile']='http://127.0.0.1/private'
-        with self.assertRaises(SourceError):parse_announcements(json.dumps([row]).encode(),'INFY',self.day,self.day)
+        events=parse_announcements(json.dumps([row,{**row,'seq_id':'text-only','attchmntFile':''}]).encode(),'INFY',self.day,self.day)
+        self.assertEqual(len(events),2)
+        self.assertTrue(all(e['url']=='' and not e['attachment_fetchable'] for e in events))
+        store=self.store;store.put('filings',events[0]['id'],events[0],ticker='INFY',published=events[0]['published_at'])
+        doc=ensure_document(store,events[0]['id'],client=FixtureClient(store,self.day))
+        self.assertEqual(doc['status'],'failed');self.assertIn('no NSE-hosted attachment',doc['error'])
+        self.assertEqual([s for s in store.rows('sources') if '127.0.0.1' in s['url']],[])
     def test_rules_keep_unknowns_visible_and_do_not_hide_management_change(self):
         self.assertEqual(priority('Financial Results','')[0],'attention')
         self.assertEqual(priority('Updates','CFO resignation')[0],'attention')
@@ -144,6 +152,83 @@ class PushTests(unittest.TestCase):
             source=self.store.get('sources',captured.exception.request_id)
             self.assertFalse(source['ok']);self.assertEqual(source['bytes'],11)
             self.assertIn('Content-Length',source['validation_error'])
+    def test_reference_taxonomy_ranks_material_filings_and_buries_paperwork(self):
+        cases={
+            ('Analysts/Institutional Investor Meet/Con. Call Updates','Transcript of the discussion on the Unaudited Financial Results for the quarter'):('earnings_call','transcript','attention'),
+            ('General Updates',"Audio recording of the discussion on the Unaudited Financial Results at the analyst meet"):('earnings_call','recording','routine'),
+            ('Allotment of Securities','allotment of 7683981 securities pursuant to Qualified Institution Placement'):('fund_raise','fund-raise','attention'),
+            ('ESOP/ESOS/ESPS','Allotment of 4675598 Shares.'):('unclassified','employee-shares','routine'),
+            ('Dividend','Board approves Interim Dividend of Rs. 19 per equity share'):('dividend','dividend','attention'),
+            ('Record Date','Record date for the purpose of Dividend is 03-Nov-2026.'):('dividend','record-date','routine'),
+            ('Bagging/Receiving of orders/contracts','informed the Exchange about Bagging/Receiving of orders/contracts'):('press_release','order-win','attention'),
+            ('Action(s) taken or orders passed','informed the Exchange about Action(s) taken or orders passed'):('litigation','litigation','attention'),
+            ('Appointment','Appointment of Mr X as Non- Executive Director of the company'):('management_change','management','attention'),
+            ('Press Release','press release titled "Financial Results Q2 and H1 FY 2026-27"'):('results','results-press','attention'),
+            ('Copy of Newspaper Publication','Copy of Newspaper Publication'):('unclassified','publication','routine'),
+        }
+        for (category,description),(kind,rule,tier) in cases.items():
+            c=classify(category,description)
+            self.assertEqual((c['kind'],c['rule'],c['priority']),(kind,rule,tier),description)
+        self.assertGreater(classify('Outcome of Board Meeting','financial results for the quarter')['score'],classify('Updates','Transcript')['score'])
+        self.assertEqual(classify('Updates',"regarding 'Infosys wins award'")['title'],'Infosys wins award')
+    def test_sunday_file_serving_previous_session_falls_back_instead_of_failing(self):
+        friday=self.day
+        while friday.weekday()!=4:friday-=timedelta(days=1)
+        sunday=friday+timedelta(days=2)
+        store=self.store
+        class SundayClient(FixtureClient):
+            def get(self,url,kind,limit=None):
+                if kind=='eod':
+                    # NSE serves Friday's rows at Sunday's URL; Saturday is missing.
+                    requested=datetime.strptime(url.rsplit('_',1)[1][:8],'%d%m%Y').date()
+                    if requested.weekday()==5:raise SourceError('HTTP 404 [request fixture]')
+                    self.day=friday
+                return super().get(url,kind,limit)
+        job=store.begin_job(['INFY'],friday.isoformat(),friday.isoformat(),sunday.isoformat())
+        job=run_refresh(store,job,client=SundayClient(store,friday),document_limit=0,history_sessions=0)
+        self.assertEqual(job['eod_date'],friday.isoformat())
+        self.assertEqual([q['date'] for q in store.rows('quotes')],[friday.isoformat()])
+    def test_history_backfill_builds_volume_baseline_and_never_fails_refresh(self):
+        store=self.store
+        class HistoryClient(FixtureClient):
+            def get(self,url,kind,limit=None):
+                if kind=='eod':
+                    requested=datetime.strptime(url.rsplit('_',1)[1][:8],'%d%m%Y').date()
+                    output=io.StringIO();writer=csv.writer(output)
+                    writer.writerow(['SYMBOL','SERIES','DATE1','CLOSE_PRICE','PREV_CLOSE','TTL_TRD_QNTY'])
+                    volume='30000' if requested==target else '10000'
+                    writer.writerow(['INFY','EQ',requested.strftime('%d-%b-%Y'),'103','100',volume])
+                    body=output.getvalue().encode()
+                    return store.source({'url':url,'final_url':url,'retrieved_at':utcnow(),'http_status':200,'kind':'synthetic-test:eod','ok':True,'fixture':True},body),body
+                return super().get(url,kind,limit)
+        target=self.day
+        while target.weekday()>=5:target-=timedelta(days=1)
+        job=store.begin_job(['INFY'],target.isoformat(),target.isoformat(),target.isoformat())
+        job=run_refresh(store,job,client=HistoryClient(store,target),document_limit=0,history_sessions=6)
+        self.assertEqual(job['status'],'complete');self.assertEqual(len(job['eod_history']['added']),6)
+        market=next(c for c in live_data(store)['companies'] if c['ticker']=='INFY')['market']
+        self.assertTrue(market['baseline_ready']);self.assertEqual(market['volume_avg'],10000);self.assertEqual(market['volume_ratio'],3.0)
+        # Re-running requests nothing already stored.
+        again=store.begin_job(['INFY'],target.isoformat(),target.isoformat(),target.isoformat())
+        again=run_refresh(store,again,client=HistoryClient(store,target),document_limit=0,history_sessions=6)
+        self.assertEqual(again['eod_history']['requested'],0)
+        class Broken(HistoryClient):
+            def get(self,url,kind,limit=None):
+                if kind=='eod' and target.strftime('%d%m%Y') not in url:raise RuntimeError('unexpected adapter fault')
+                return super().get(url,kind,limit)
+        fresh=Store(Path(self.temp.name)/'broken')
+        job=fresh.begin_job(['INFY'],target.isoformat(),target.isoformat(),target.isoformat())
+        store=fresh;job=run_refresh(fresh,job,client=Broken(fresh,target),document_limit=0,history_sessions=6)
+        self.assertEqual(job['status'],'complete');self.assertIn('error',job['eod_history'])
+    def test_snapshot_filings_are_relabelled_with_current_rules(self):
+        self.run_job(['INFY'])
+        event=self.store.rows('filings')[0]
+        event.update(rule_id='push-v2:unknown',priority='unreviewed',title='Updates',category='Allotment of Securities',description='allotment pursuant to Qualified Institution Placement')
+        event.pop('kind',None);event.pop('attachment_fetchable',None)
+        self.store.put('filings',event['id'],event,ticker='INFY',published=event['published_at'])
+        shown=live_data(self.store)['events'][0]
+        self.assertEqual((shown['kind'],shown['priority'],shown['title']),('fund_raise','attention','Fund raising'))
+        self.assertTrue(shown['attachment_fetchable'])
 
 
 if __name__=='__main__':unittest.main()

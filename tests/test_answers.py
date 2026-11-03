@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 
-from app.answers import CitationRejected,answer_evidence,answer_question,validate
+from datetime import datetime,timedelta,timezone
+from app.answers import CitationRejected,answer_evidence,answer_question,reserve,validate,wait_for_pacing
 from app.gemini import GeminiClient,ModelUnavailable,NoRedirect,load_key
 from app.research import index_document
 from app.store import Store,utcnow
@@ -84,7 +85,30 @@ class AnswerTests(unittest.TestCase):
         bad=copy.deepcopy(self.content);bad['claims'][0]['citations'][0]['evidence_id']='bad'
         with self.assertRaises(CitationRejected):answer_evidence(self.store,self.result,client=FakeClient(bad))
         self.assertEqual(self.store.rows('answers'),[])
-        with self.assertRaises(ModelUnavailable):answer_evidence(self.store,self.result,client=FakeClient(self.content))
+        # The pacing gap is still enforced at reservation, but a user's question now waits its turn instead of failing.
+        with self.assertRaises(ModelUnavailable):reserve(self.store,'direct-second-call')
+        with patch('time.sleep') as sleep:delay=wait_for_pacing(self.store)
+        self.assertGreater(delay,0);self.assertLessEqual(delay,13);sleep.assert_called_once()
+        # Simulate the queued wait having elapsed: the same question then succeeds.
+        earlier=(datetime.now(timezone.utc)-timedelta(seconds=20)).isoformat()
+        for call in self.store.rows('model_calls'):self.store.put('model_calls',call['id'],{**call,'started_at':earlier})
+        result=answer_evidence(self.store,self.result,client=FakeClient(self.content))
+        self.assertEqual(result['status'],'ready')
+    def test_unverifiable_claim_is_dropped_not_the_whole_answer(self):
+        good=self.content['claims'][0]
+        invented={'text':'Cash from operations was INR 99 crore.','citations':good['citations']}
+        mixed={**copy.deepcopy(self.content),'claims':[good,copy.deepcopy(good),invented]}
+        client=FakeClient(mixed)
+        result=answer_evidence(self.store,self.result,client=client)
+        self.assertEqual(client.calls,1)  # no correction call was spent
+        self.assertEqual(result['content']['status'],'partial');self.assertEqual(len(result['content']['claims']),2)
+        self.assertNotIn('99',json.dumps(result['content']['claims']))
+        self.assertIn('1 claim removed',result['content']['gaps'][-1])
+    def test_answer_with_no_verifiable_claim_still_fails_closed(self):
+        bad=copy.deepcopy(self.content);bad['claims'][0]['text']='Cash from operations was INR 99 crore.'
+        with patch('app.answers.reserve_correction',return_value={'id':'repair-fixture','started_at':utcnow()}):
+            with self.assertRaises(CitationRejected):answer_evidence(self.store,self.result,client=FakeClient(bad))
+        self.assertEqual(self.store.rows('answers'),[])
     def test_cache_and_call_audit_are_not_exported(self):
         answer_evidence(self.store,self.result,client=FakeClient(self.content))
         path=Path(self.temp.name)/'snapshot.gz';snapshot=self.store.export_snapshot(path)

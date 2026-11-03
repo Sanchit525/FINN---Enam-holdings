@@ -75,23 +75,48 @@ def validate(answer,evidence):
     if answer['status']!='insufficient' and not answer['claims']:raise CitationRejected('Answer has no supported claims')
     allowed={p['id']:p for p in evidence}
     for claim in answer['claims']:
-        if not isinstance(claim,dict) or set(claim)!=set(('text','citations')) or not isinstance(claim['text'],str) or not 1<=len(claim['text'])<=500:raise CitationRejected('Invalid claim')
-        if not isinstance(claim['citations'],list) or not 1<=len(claim['citations'])<=3:raise CitationRejected('Every claim needs a bounded source citation')
-        support=[]
-        for cite in claim['citations']:
-            if not isinstance(cite,dict) or set(cite)!=set(('evidence_id','quote')) or not isinstance(cite['evidence_id'],str) or cite['evidence_id'] not in allowed:raise CitationRejected('Unknown or unsupported citation rejected')
-            p=allowed[cite['evidence_id']];quote=cite['quote']
-            if not isinstance(quote,str) or not 12<=len(quote)<=360:raise CitationRejected('Supporting quote violates the bounded quote length')
-            if normal(quote) not in normal(p['passage']):raise CitationRejected('Supporting quote does not occur in the supplied evidence')
-            support.append(quote+' '+p.get('period',''))
-        if not numbers(claim['text']).issubset(numbers(' '.join(support))):raise CitationRejected('Claim contains a figure not present in its supporting quotes/period')
-        if not units(claim['text']).issubset(units(' '.join(support))):raise CitationRejected('Claim changes a reported unit or currency')
-        if not periods(claim['text']).issubset(periods(' '.join(support))):raise CitationRejected('Claim changes the supplied financial period')
-        if re.search(r'https?://|<script|AIza[\w-]{15,}',claim['text'],re.I):raise CitationRejected('Unexpected URL/active/secret-like answer content')
+        problem=claim_problem(claim,allowed)
+        if problem:raise CitationRejected(problem)
     for field,limit,length in [('gaps',3,500),('follow_up_questions',2,180)]:
         if not isinstance(answer[field],list) or len(answer[field])>limit or any(not isinstance(x,str) or not 1<=len(x)<=length for x in answer[field]):raise CitationRejected('Invalid '+field)
     if answer['status'] in ('partial','insufficient') and not answer['gaps']:raise CitationRejected('Missing evidence must be explicit')
     return answer
+
+
+def claim_problem(claim,allowed):
+    """Return why one claim fails source checks, or None. Shared by validate() and salvage()."""
+    if not isinstance(claim,dict) or set(claim)!=set(('text','citations')) or not isinstance(claim['text'],str) or not 1<=len(claim['text'])<=500:return ('Invalid claim')
+    if not isinstance(claim['citations'],list) or not 1<=len(claim['citations'])<=3:return ('Every claim needs a bounded source citation')
+    support=[]
+    for cite in claim['citations']:
+        if not isinstance(cite,dict) or set(cite)!=set(('evidence_id','quote')) or not isinstance(cite['evidence_id'],str) or cite['evidence_id'] not in allowed:return ('Unknown or unsupported citation rejected')
+        p=allowed[cite['evidence_id']];quote=cite['quote']
+        if not isinstance(quote,str) or not 12<=len(quote)<=360:return ('Supporting quote violates the bounded quote length')
+        if normal(quote) not in normal(p['passage']):return ('Supporting quote does not occur in the supplied evidence')
+        support.append(quote+' '+p.get('period',''))
+    if not numbers(claim['text']).issubset(numbers(' '.join(support))):return ('Claim contains a figure not present in its supporting quotes/period')
+    if not units(claim['text']).issubset(units(' '.join(support))):return ('Claim changes a reported unit or currency')
+    if not periods(claim['text']).issubset(periods(' '.join(support))):return ('Claim changes the supplied financial period')
+    if re.search(r'https?://|<script|AIza[\w-]{15,}',claim['text'],re.I):return ('Unexpected URL/active/secret-like answer content')
+    return None
+
+
+def salvage(answer,evidence,minimum_share=0.0):
+    """Keep only claims that pass every source check; never edit a claim's wording.
+
+    Returns a validated partial answer, or None when nothing verifiable remains or too few claims survive."""
+    if not isinstance(answer,dict) or not isinstance(answer.get('claims'),list) or not answer['claims']:return None
+    allowed={p['id']:p for p in evidence}
+    try:kept=[c for c in answer['claims'] if isinstance(c,dict) and claim_problem(c,allowed) is None]
+    except Exception:return None
+    dropped=len(answer['claims'])-len(kept)
+    if not kept or not dropped or len(kept)<minimum_share*len(answer['claims']):return None
+    note=f"{dropped} claim{'s' if dropped>1 else ''} removed because {'their figures' if dropped>1 else 'its figures'} could not be matched exactly to the quoted source. Check the passages below."
+    gaps=[g for g in answer.get('gaps',[]) if isinstance(g,str)][:2]+[note]
+    result={'status':'partial','claims':kept,'gaps':gaps,'follow_up_questions':answer.get('follow_up_questions',[]) if isinstance(answer.get('follow_up_questions'),list) else []}
+    try:validate(result,evidence)
+    except CitationRejected:return None
+    return result
 
 
 def history_questions(history):
@@ -113,6 +138,23 @@ def reserve(store,key):
         call={'id':uuid.uuid4().hex,'cache_key':key,'model':MODEL,'started_at':now,'status':'reserved'}
         db.execute('INSERT INTO model_calls(id,payload) VALUES(?,?)',(call['id'],json.dumps(call)))
     return call
+
+
+PACING_SECONDS=12
+
+
+def wait_for_pacing(store):
+    """Queue briefly behind the previous model call instead of failing the user's question."""
+    import time
+    today=utcnow()[:10]
+    with store.connect() as db:
+        stamps=[json.loads(r['payload'])['started_at'] for r in db.execute('SELECT payload FROM model_calls')]
+    stamps=[s for s in stamps if s[:10]==today]
+    if not stamps:return 0
+    age=(datetime.now(timezone.utc)-datetime.fromisoformat(max(stamps))).total_seconds()
+    delay=min(PACING_SECONDS+0.5,max(0.0,PACING_SECONDS-age+0.2))
+    if delay>0:time.sleep(delay)
+    return delay
 
 
 def answer_evidence(store,result,history=None,client=None):
@@ -145,11 +187,18 @@ def answer_evidence(store,result,history=None,client=None):
                 'gaps':['No eligible source passages matched this question. Try a narrower question or load additional primary documents.'],'follow_up_questions':[]},
                 'cached':False,'model_called':False,'model':MODEL,'generated_at':utcnow()}
         if not client.configured:raise ModelUnavailable('Gemini key is not configured; original passages remain available')
+        wait_for_pacing(store)
         call=reserve(store,key)
         try:
             content,metadata=client.generate(SYSTEM,payload,SCHEMA)
             try:validate(content,evidence)
             except CitationRejected as error:
+              original=content
+              # If most claims verify, publish only those (marked partial) and save a model call.
+              kept=salvage(original,evidence,minimum_share=0.5)
+              if kept:
+                content=kept;metadata={**metadata,'salvaged':True,'validation_error':str(error)}
+              else:
                 # One bounded correction against the SAME evidence; never retry provider/quota errors.
                 call.update(status='correction-requested',validation_error=str(error))
                 store.put('model_calls',call['id'],call)
@@ -157,7 +206,12 @@ def answer_evidence(store,result,history=None,client=None):
                 try:
                     content,repair_metadata=client.generate(SYSTEM,{**payload,'correction':
                         'The previous output was rejected: '+str(error)+'. Return a fresh concise answer using only this evidence. All quotes must be exact contiguous spans, 12–180 characters. Use multiple citations for separate facts; do not copy long paragraphs.'},SCHEMA)
-                    validate(content,evidence)
+                    try:validate(content,evidence)
+                    except CitationRejected:
+                        # Last resort: any individually verified claims, never edited, still beat no answer.
+                        fallback=salvage(content,evidence) or salvage(original,evidence)
+                        if not fallback:raise
+                        content=fallback;repair_metadata={**repair_metadata,'salvaged':True}
                     correction.update(status='correction-succeeded',**repair_metadata)
                     metadata={**repair_metadata,'seconds':round(metadata['seconds']+repair_metadata['seconds'],3),'corrected':True,
                         'usage':{k:metadata.get('usage',{}).get(k,0)+repair_metadata.get('usage',{}).get(k,0)

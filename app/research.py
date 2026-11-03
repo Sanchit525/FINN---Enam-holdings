@@ -284,6 +284,10 @@ def begin_research(store,ticker,force=False):
         db.execute('BEGIN IMMEDIATE')
         row=db.execute("SELECT payload FROM meta WHERE id='research-active'").fetchone()
         active=json.loads(row['payload']) if row else None
+        # A company whose sources are already stored is served immediately, even while another company loads.
+        if not force and not (active and active.get('ticker')==ticker and active['status']=='running'):
+            cached=cached_record(store,ticker)
+            if cached:return cached,True
         if active and active['status']=='running' and active['expires_at']>utcnow():return active,True
         if active and active['status']=='running':
             active.update(status='interrupted',error='Research lease expired; load sources again to retry')

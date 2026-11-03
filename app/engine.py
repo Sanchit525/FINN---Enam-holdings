@@ -31,7 +31,45 @@ def configuration(tickers=None,start=None,end=None,asof=None):
     return symbols,begin,finish,session
 
 
-def run_refresh(store,job,client=None,document_limit=2):
+def eod_missing(error):
+    text=str(error)
+    return 'HTTP 404' in text or 'EOD date differs' in text
+
+
+def backfill_history(store,client,tickers,session,wanted,began,max_requests=14,budget=200):
+    """Fetch earlier official EOD files so volume can be compared with a recent average.
+
+    Only sessions not already stored are requested; weekends are skipped, holidays (404 / date mismatch)
+    are skipped, and any blocked/network failure stops the backfill without affecting the refresh."""
+    stored={q['date'] for q in store.rows('quotes') if q['ticker'] in tickers}
+    have=sorted(d for d in stored if d<session.isoformat())
+    outcome={'wanted':wanted,'requested':0,'added':[],'skipped':[],'error':None}
+    day=session;requests=0
+    while len(have)<wanted and requests<max_requests and (session-day).days<45:
+        day-=timedelta(days=1)
+        if day.weekday()>=5 or day.isoformat() in stored:continue
+        if time.monotonic()-began>budget:outcome['error']='Time budget reached; remaining history will be fetched on a later refresh';break
+        requests+=1
+        try:
+            source,body=client.get(eod_url(day),'eod',limit=3_000_000)
+            try:rows=parse_eod(body,day);store.validate_source(source['id'],True)
+            except Exception as error:
+                store.validate_source(source['id'],False,str(error));raise
+        except SourceError as error:
+            if eod_missing(error):outcome['skipped'].append(day.isoformat());continue
+            outcome['error']=str(error);break
+        for ticker in tickers:
+            if ticker in rows:
+                quote=rows[ticker]
+                quote.update(id=ticker+':'+quote['date'],source_id=source['id'],source=source['final_url'],retrieved_at=source['retrieved_at'])
+                store.put('quotes',quote['id'],quote,ticker=ticker,session=quote['date'])
+        have.append(day.isoformat());outcome['added'].append(day.isoformat())
+        time.sleep(.2)
+    outcome['requested']=requests;outcome['sessions']=len(have)
+    return outcome
+
+
+def run_refresh(store,job,client=None,document_limit=2,history_sessions=10):
     client=client or SourceClient(store)
     if isinstance(client,SourceClient):client.job_id=job['id']
     began=time.monotonic();start=date.fromisoformat(job['start']);end=date.fromisoformat(job['end'])
@@ -49,8 +87,9 @@ def run_refresh(store,job,client=None,document_limit=2):
             except SourceError as error:
                 eod_error=str(error)
                 if getattr(error,'request_id',None):eod_source=store.get('sources',error.request_id)
-                # Only an absent file warrants trying an older day; blocked/network sources do not.
-                if 'HTTP 404' not in str(error):break
+                # An absent file, or NSE serving the previous session under a non-trading date (e.g. Sunday
+                # returns Friday), warrants trying an older day; blocked/network sources do not.
+                if not eod_missing(error):break
         job['eod_date']=session.isoformat() if quotes else None
         for ticker in job['tickers']:
             check=dict(id=job['id']+':'+ticker,job_id=job['id'],ticker=ticker,started_at=utcnow(),
@@ -84,6 +123,11 @@ def run_refresh(store,job,client=None,document_limit=2):
             store.put('checks',check['id'],check,ticker=ticker,job_id=job['id'])
             job['completed']+=1;store.save_job(job)
             time.sleep(.15)
+        if quotes and history_sessions:
+            # Extra context for volume alerts; it can never fail an otherwise successful refresh.
+            try:job['eod_history']=backfill_history(store,client,job['tickers'],session,history_sessions,began)
+            except Exception as error:job['eod_history']={'error':f'{type(error).__name__}: {error}'}
+            store.save_job(job)
         candidates=[e for e in store.rows('filings') if e['ticker'] in job['tickers'] and job['start']<=e['date']<=job['end']]
         candidates.sort(key=lambda e:({'attention':2,'unreviewed':1,'routine':0}[e['priority']],e['published_at']),reverse=True)
         document_results=[]
@@ -124,6 +168,9 @@ def _ensure_document(store,event_id,client=None,force=False):
              title=event['ticker']+' · '+event['title'],kind='Exchange filing',period='Period not inferred from metadata',date=event['date'],url=event['url'],
              status='failed',checked_at=utcnow(),pages=[],note='',pageCount=None)
     try:
+        if not event.get('url'):
+            raise SourceError('This announcement has no NSE-hosted attachment to download. Use the original source link.'
+                              if event.get('attachment_url') else 'This announcement was filed as text only; there is no attachment to download.')
         source,body=(client or SourceClient(store)).get(event['url'],'filing-pdf',limit=25_000_000)
         doc.update(source_id=source['id'],retrieved=source['retrieved_at'],sha256=source['sha256'])
         try:
@@ -151,7 +198,7 @@ def _ensure_document(store,event_id,client=None,force=False):
                     if re.search(r'earnings (?:conference )?call',header) and not any(s in header for s in ['media conference','press conference','dear sir','please find enclosed']):
                         following=[p for p in pages[index:index+3] if len(p['text'])>800 and re.search(r'revenue|cash flow|operating margin',p['text'],re.I)]
                         if following:chosen=following[0];break
-            elif event['rule_id'].endswith(':results'):
+            elif ':results' in event['rule_id']:
                 chosen=max(text_pages,key=lambda p:sum(word in p['text'].casefold() for word in ['consolidated','financial results','revenue','profit','quarter']))
             excerpt=' '.join(chosen['text'].split())
             # This is an extract, not a financial interpretation or automatically normalised table.

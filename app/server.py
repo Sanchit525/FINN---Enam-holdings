@@ -109,7 +109,8 @@ def make_handler(app):
                 try:ticker=symbol(path.rsplit('/',1)[-1])
                 except ValueError as error:return self.send(400,{'error':str(error)})
                 job=app.store.get('research',ticker)
-                return self.send(200 if job else 404,job or {'error':'No research loaded for this ticker'})
+                # "Not loaded yet" is a normal state, not an error: the UI starts discovery from it.
+                return self.send(200,job or {'ticker':ticker,'status':'not_loaded','documents':[]})
             if path.startswith('/api/filings/') and path.endswith('/evidence'):
                 event_id=path.split('/')[3]
                 if not app.store.get('filings',event_id):return self.send(404,{'error':'Unknown filing'})
